@@ -1,0 +1,1 @@
+# put extensions in supercollider extensions folder
