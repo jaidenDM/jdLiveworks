@@ -1,33 +1,62 @@
 /*
-	TO DO:
-	review labelling -  are labels needed for on and off for 0D controls?
+	TO DO
+
+	Re-Structuring Too Soon? 
+
+	MultiPush: better 2D access
 
 */
 AbstractOSCTouchControl {
+	var  <>viewName, <>name, <>recvAddr, <>oscfunc, <>sender, <>label;
 
-}
-
-OSCTouchControl1D {
-	
-	var <>viewName, <>name, <>id, <>sender, <>label, <>recvAddr, <>oscfunc, <>ccFunc;
-
-	*new {|viewName, name, id, sender|
-		^super.newCopyArgs(viewName, name, id, sender).onReceive;
+	/* TalkBack Messages */
+	send {|val|
+		sender !? { sender.sendMsg(recvAddr, (val ? 0)) } 
 	}
 
-	type { ^1}
+	sendLabelMsg {|msg|
+		sender !? { sender.sendMsg(recvAddr ++ '/label', msg ? '') } 
+	}
 
+	/* CLEAN UP */
+	zero { sender.sendMsg(recvAddr, 0 )}
+
+	free { oscfunc.free }
+
+	clearLabel { sender.sendMsg(recvAddr ++ '/label', '')	}
+
+	clear {
+		oscfunc.free;
+		this.clearLabel;
+		this.zero;
+	}
+}
+/* Fader/Knob*/
+OSCTouchControl1D : AbstractOSCTouchControl{
+	
+	var <>id, <>ccFunc;
+
+	*new {|viewName, name, id, sender|
+		^super.new.init(viewName, name, id, sender).onReceive;
+	}
+
+	init {|viewName, name, id, sender|
+
+		this.viewName = viewName; 
+		this.name = name; 
+		this.id = id; 
+		this.sender = sender;
+
+		this.recvAddr = viewName.asSymbol ++ name.asSymbol;	
+	}
+	/* Control Function */
 	onReceive {
-
-		recvAddr = viewName.asSymbol ++ name.asSymbol;
 
 		oscfunc !? { oscfunc.free };
 		oscfunc = OSCFunc({|v,n,c,s|
 			ccFunc.value(v[1], id);
-			/* feedback */
-			sender !? {
-				sender.sendMsg(recvAddr ++ '/label', (label ? ''))
-			} 
+			/* TalkBack */
+			this.sendLabelMsg(label)
 		}, recvAddr);
 	}
 
@@ -36,156 +65,58 @@ OSCTouchControl1D {
 		this.label = label ? '';
 		this.onReceive;
 	}
-
-	send {|val|
-		sender !? {
-			sender.sendMsg(recvAddr, (val ? 0))
-		} 
-	}
-
-	clear {
-		oscfunc.free;
-		sender.sendMsg(recvAddr ++ '/label', '')
-	}
 }
-/* Array of slide controls */
-OSCMultiTouchControl1D {
 
-	var <>viewName, <>name, <>num, <>sender, <>controls;
-
-	*new {|viewName, name, num, sender|
-		^super.newCopyArgs(viewName, name, num, sender).onReceive;
-	}
-
-	onReceive {
-		controls = (1..num ).collect{|id|
-			var numberedName = name ++ '/' ++ (id).asSymbol;
-			OSCTouchControl1D(viewName, numberedName, id - 1);
-		}
-	}
-
-	cc_ {|func, label|
-		this.controls.do{|control|
-			control.ccFunc = func;
-			control.label = label ? '';
-			control.onReceive;
-		}
-	}
-
-	clear {
-		this.controls.do{|control|
-			control.oscfunc.free;
-			control.sender.sendMsg(control.recvAddr ++ '/label', '')
-		}
-	}
-
-	send {|val|
-		this.controls.do{|control|
-			control.send(val)
-		}
-	}	
-
-	at {|n|
-		^controls[n]
-	}
-
-	copySeries {|first,second, last|
-		var range = last - first;
-		^(0..range-1).collect{|n|
-			controls[n]
-		}
-	}
-} 
 /* xy-pad */
-OSCTouchControl2D {
-	
-	var <>viewName, <>name, <>id, <>sender, <>label, <>recvAddr, <>oscfunc, <>ccFunc;
-
-	*new {|viewName, name, id, sender, label|
-		^super.newCopyArgs(viewName, name, id, sender, label).onReceive;
-	}
-
-	type { ^\cc }
+OSCTouchControl2D : OSCTouchControl1D {
 
 	onReceive {
-
 		recvAddr = viewName.asSymbol ++ name.asSymbol;
-
 		oscfunc !? { oscfunc.free };
 		oscfunc = OSCFunc({|v,n,c,s|
 			ccFunc.value(v[1], v[2]);
-			/* feedback */
-			sender !? {
-				sender.sendMsg(recvAddr ++ '/label', (label ? ''))
-			} 
+			this.sendLabelMsg(label)
 		}, recvAddr);
 	}
-
-	cc_ {|func, label|
-		this.ccFunc = func;
-		this.label = label ? '';
-		this.onReceive;
-	}
-
-	send {|val|
-		sender !? {
-			sender.sendMsg(recvAddr, (val ? 0))
-		} 
-	}
-
-	clear {
-		oscfunc.free;
-		sender.sendMsg(recvAddr ++ '/label', '')
-	}
 }
-
 /* push, toggle */
-OSCTouchControl0D {
+OSCTouchControl0D : OSCTouchControl1D {
 
-	var <>viewName, <>name, <>row, <>col,
-		<>sender, <>label,
-		<>recvAddr, <>oscfunc,
-		<>ccFunc, 
-		<>onFunc,<>offFunc, <>onLabel, <>offLabel;
+	var <>row, <>col,
+		<>onFunc,<>offFunc, <>offLabel;
 
-	*new {|viewName, name, row,col, sender, label|
-		^super.newCopyArgs(viewName, name, row, col, sender, label).onReceive;
+	*new {|viewName, name, row, col, sender|
+		^super.new.init(viewName, name, row, col, sender).onReceive;
 	}
 
-	type { ^\push }
+	init {|viewName, name, row, col, sender|
 
+		this.viewName = viewName; 
+		this.name = name; 
+		this.row = row; 
+		this.col = col; 
+		this.sender = sender;	
+	}
+	/* Control Function */
 	onReceive {
-
 		recvAddr = viewName ++ name;
 		oscfunc !? { oscfunc.free };
 		oscfunc = OSCFunc({|v,n,c,s|
 			/* as Continuous Control */
 			this.ccFunc.value(v[1], row, col);
-			this.sendLabelMsg;
+			this.sendLabelMsg(label);
 			/* As Trigger */
 			if(v[1] == 0)
 			{
 				this.offFunc.value(v[1], row, col);
-				this.sendLabelMsg;
+				this.sendLabelMsg(label);
 			} {
 				this.onFunc.value(v[1], row, col);
-				this.sendLabelMsg;
+				this.sendLabelMsg(offLabel ? label);
 			};
 		}, recvAddr);
 	}
 
-	/* ad cc for which takes just uses input*/
-	cc_ {|func, label|
-		this.ccFunc = func;
-		this.label = label ? '';
-		this.onReceive;
-	}
-
-	sendLabelMsg {
-		sender !? {
-			sender.sendMsg(recvAddr ++ '/label', (offLabel ? label ? ''))
-		} 
-	}
 
 	on_ {|func, label|
 		this.onFunc = func;
@@ -197,17 +128,106 @@ OSCTouchControl0D {
 		this.offFunc = func;
 		this.onReceive;
 	}
+}
+/* 
+
+	Worth Doing? Adaptable to MIDI?
+	AbstractOSCTouchControl : AbstractTouchControl {
+
+	var <>viewName, <>name, <>sender, <>controls;	
+
+	doControls{|func|
+		controls.do{|control|
+			func.value(control)
+		}
+	}
+
+	clear {|val|
+		this.doControls{|control| control.clear }
+	}	
 
 	send {|val|
-		sender !? {
-			sender.sendMsg(recvAddr.postln, (val ? 0))
-		} 
+		this.doControls{|control| control.send(val) }
+	}	
+	
+	zero {
+		send {|val|
+		this.doControls{|control| control.zero }
+	}	
+
+	at {|n|
+		^controls[n]
 	}
-}
-/* Array of push controls */
-/* todo:make more 2d access 
-	rowAt{|n|}; colAt{|n|}
+} 
 */
+/* Multi Fader/Knob */
+OSCMultiTouchControl1D {
+
+	var <>viewName, <>name, <>num, <>sender, <>controls;
+
+	*new {|viewName, name, num, sender|
+		^super.newCopyArgs(viewName, name, num, sender).onReceive;
+	}
+
+	onReceive {
+		controls = (1..num ).collect{|id|
+			var numberedName = name ++ '/' ++ (id).asSymbol;
+			OSCTouchControl1D(viewName, numberedName, id - 1, sender);
+		}
+	}
+
+	cc_ {|func, label|
+		this.controls.do{|control|
+			control.ccFunc = func;
+			control.label = label ? '';
+			control.onReceive;
+		}
+	}
+
+	
+	/* TalkBack */
+	send {|val|
+		this.controls.do{|control|
+			control.send(val)
+		}
+	}	
+	/* ACCESS */
+	at {|n|
+		^controls[n]
+	}
+
+	copySeries {|first,second, last|
+		var range = last - first;
+		^(0..range-1).collect{|n|
+			controls[n]
+		}
+	}
+	/* CLEAN UP */
+	clearLabels {
+		this.controls.do{|control|
+			control.sender.sendMsg(control.recvAddr ++ '/label', '')
+		}
+	}
+
+	zero {
+		this.controls.do{|control|
+			control.zero;
+		}
+	}
+
+	free {
+		this.controls.do{|control|
+			control.oscfunc.free;
+		}
+	}
+
+	clear {
+		this.free;
+		this.zero;
+		this.clearLabels;
+	}
+} 
+/* Multi Push/Toggle*/
 OSCMultiTouchControl0D {
 
 	var <>viewName, <>name, <>rows, <>columns, <>sender, <>controls;
@@ -224,24 +244,6 @@ OSCMultiTouchControl0D {
 			}
 		}
 	}
-
-	clear {
-		this.send(0);
-		rows.do{|row|
-			columns.do{|column|
-				controls[row][column].oscfunc.free;
-				controls[row][column].sender.sendMsg(controls[row][column].recvAddr ++ '/label', '')
-			}
-		}
-	}
-
-	send {|val|
-		rows.do{|row|
-			columns.do{|column|
-				controls[row][column].send(val);
-			}
-		}
-	}	
 
 	cc_ {| ... arglist|
 		rows.do{|row|
@@ -275,6 +277,18 @@ OSCMultiTouchControl0D {
 		}
 	}
 
+	/* TALKBACK */
+
+	send {|val|
+		rows.do{|row|
+			columns.do{|column|
+				controls[row][column].send(val);
+			}
+		}
+	}	
+
+	/* ACCESS */
+
 	at {|row, col|
 		if (col.notNil) 
 		{
@@ -290,6 +304,36 @@ OSCMultiTouchControl0D {
 			controls[n]
 		}
 	}
+
+	/* CLEAN UP */
+
+	zero {
+		this.send(0)
+	}
+
+	free {
+		this.send(0);
+		rows.do{|row|
+			columns.do{|column|
+				controls[row][column].oscfunc.free;
+			}
+		}
+	}
+
+	clearLabels {
+		this.send(0);
+		rows.do{|row|
+			columns.do{|column|
+				controls[row][column].sender.sendMsg(controls[row][column].recvAddr ++ '/label', '')
+			}
+		}
+	}
+
+	clear {
+		this.zero;
+		this.free;
+		this.clearLabels;
+	}	
 } 
 
 /* ------------------------------------------------------------------------
@@ -303,25 +347,13 @@ OSCControlView {
 		^super.new.init(name, sender)
 	}
 
-	* clear {
-		/* clear all controls*/
-		controls.do{|control|
-			control.clear
-		}
-	}
-
-	* zero {
-		// controls.do{
-		// 	// control.zero;
-		// }
-	} 
-
 	init {|name, sender|
 		this.name = name;
 		this.sender = sender;
 		this.controls = ();
 	}
 
+	/* ADD CONTROLS  */
 	addPushControl {|name|
 		var control = OSCTouchControl0D(this.name, ('/' ++ name), sender);
 		this.controls.put(name, control);
@@ -340,29 +372,48 @@ OSCControlView {
 		this.addMultiPushControl(*arglist)
 	}
 
-	addSlideControl {|name|
-		var control = OSCTouchControl1D(this.name, ('/' ++ name), sender);
+	addFaderControl {|name|
+		var control = OSCTouchControl1D(this.name, ('/' ++ name), nil, sender);
 		this.controls.put(name, control);
 	}
 
-	addMultiSlideControl {|name, num|
+	addRotaryControl {|name|
+		var control = OSCTouchControl1D(this.name, ('/' ++ name), nil, sender);
+		this.controls.put(name, control);
+	}
+
+	addEncoderControl {|name|
+		var control = OSCTouchControl1D(this.name, ('/' ++ name), nil, sender);
+		this.controls.put(name, control);
+	}
+
+	addMultiFaderControl {|name, num|
 		var control = OSCMultiTouchControl1D(this.name, ('/' ++ name), num, sender);
 		this.controls.put(name, control);
 	}
 
-	add2DSlideControl {|name|
-		var control = OSCTouchControl2D(this.name, ('/' ++ name), sender);
+	addXYPadControl {|name|
+		var control = OSCTouchControl2D(this.name, ('/' ++ name), nil, sender);
 		this.controls.put(name, control);
 	}
 
-	load {|config|
-
-	}
-
+	/* ACCESS */
 	at {|idx|
 		^controls.at(idx)
+	} 
+	/* CLEAN UP */
+	clear {
+		/* clear all controls*/
+		controls.do{|control|
+			control.clear
+		}
+	}
+
+	zero {
+		controls.do{|control|
+			control.zero
+		}
 	} 
 }
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
-

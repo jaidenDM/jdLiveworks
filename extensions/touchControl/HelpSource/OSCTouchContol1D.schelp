@@ -1,0 +1,47 @@
+class:: OSCTouchControl1D
+summary:: SuperCollider implementation of Osc Knob/Slider 
+related:: Classes/
+categories::  
+
+
+Description::
+
+SuperCollider implementation of Touch OSC 1-Dimensional Continuous Control (Knob/Fader/Encoder)
+
+
+classmethods::new
+
+argument::viewName
+TouchOSC page name. Used as first part of recvAddr.
+
+argument::name
+This control name. Used as second part of recvAddr.
+
+argument::id
+ID of control within multi control (e.g which fader in a multi-fader). Default nil.
+
+argument::sender
+Instance of NetAddr for sending Talkback messages
+
+method::cc_
+
+argument::func
+Function evaluated on reception of OSC message. Takes the value as input.
+
+argument::label
+Optional. Set label text.
+
+
+Examples::
+
+code::
+o = NetAddr('192.186.0.17', 9000);
+c = OSCControlView('/page',o);
+
+/* assumes control exists named '/page/fader1' */
+c.addFaderControl('fader1');
+
+c[\fader1].cc_{|v|v.postln}; /* now slide around OSC fader */
+
+::
+
