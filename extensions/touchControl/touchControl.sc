@@ -1,3 +1,12 @@
+/*
+	TO DO:
+	review labelling -  are labels needed for on and off for 0D controls?
+
+*/
+AbstractOSCTouchControl {
+
+}
+
 OSCTouchControl1D {
 	
 	var <>viewName, <>name, <>id, <>sender, <>label, <>recvAddr, <>oscfunc, <>ccFunc;
@@ -101,7 +110,6 @@ OSCTouchControl2D {
 	onReceive {
 
 		recvAddr = viewName.asSymbol ++ name.asSymbol;
-		recvAddr.postln;
 
 		oscfunc !? { oscfunc.free };
 		oscfunc = OSCFunc({|v,n,c,s|
@@ -130,12 +138,14 @@ OSCTouchControl2D {
 		sender.sendMsg(recvAddr ++ '/label', '')
 	}
 }
+
 /* push, toggle */
 OSCTouchControl0D {
 
 	var <>viewName, <>name, <>row, <>col,
 		<>sender, <>label,
 		<>recvAddr, <>oscfunc,
+		<>ccFunc, 
 		<>onFunc,<>offFunc, <>onLabel, <>offLabel;
 
 	*new {|viewName, name, row,col, sender, label|
@@ -149,29 +159,32 @@ OSCTouchControl0D {
 		recvAddr = viewName ++ name;
 		oscfunc !? { oscfunc.free };
 		oscfunc = OSCFunc({|v,n,c,s|
+			/* as Continuous Control */
+			this.ccFunc.value(v[1], row, col);
+			this.sendLabelMsg;
+			/* As Trigger */
 			if(v[1] == 0)
 			{
 				this.offFunc.value(v[1], row, col);
-				/* feedback */
-				sender !? {
-					sender.sendMsg(recvAddr ++ '/label', (offLabel ? label ? ''))
-				} 
+				this.sendLabelMsg;
 			} {
 				this.onFunc.value(v[1], row, col);
-				/* feedback */
-				sender !? {
-					sender.sendMsg(recvAddr ++ '/label', (label ? ''))
-				} 
+				this.sendLabelMsg;
 			};
 		}, recvAddr);
 	}
 
-	onOff_ {|onFunc, offFunc, label, offLabel|
-		this.onFunc = onFunc;
-		this.offFunc = offFunc;
+	/* ad cc for which takes just uses input*/
+	cc_ {|func, label|
+		this.ccFunc = func;
 		this.label = label ? '';
-		this.offLabel = offLabel ? label;
 		this.onReceive;
+	}
+
+	sendLabelMsg {
+		sender !? {
+			sender.sendMsg(recvAddr ++ '/label', (offLabel ? label ? ''))
+		} 
 	}
 
 	on_ {|func, label|
@@ -192,6 +205,9 @@ OSCTouchControl0D {
 	}
 }
 /* Array of push controls */
+/* todo:make more 2d access 
+	rowAt{|n|}; colAt{|n|}
+*/
 OSCMultiTouchControl0D {
 
 	var <>viewName, <>name, <>rows, <>columns, <>sender, <>controls;
@@ -227,6 +243,38 @@ OSCMultiTouchControl0D {
 		}
 	}	
 
+	cc_ {| ... arglist|
+		rows.do{|row|
+			columns.do{|column|
+				controls[row][column].cc_(*arglist);
+			}
+		}
+	}
+
+	on_ {| ... arglist|
+		rows.do{|row|
+			columns.do{|column|
+				controls[row][column].on_(*arglist);
+			}
+		}
+	}
+
+	off_ {| ... arglist|
+		rows.do{|row|
+			columns.do{|column|
+				controls[row][column].off_(*arglist);
+			}
+		}
+	}
+
+	onOff_ {| ... arglist|
+		rows.do{|row|
+			columns.do{|column|
+				controls[row][column].onOff_(*arglist);
+			}
+		}
+	}
+
 	at {|row, col|
 		if (col.notNil) 
 		{
@@ -257,7 +305,16 @@ OSCControlView {
 
 	* clear {
 		/* clear all controls*/
+		controls.do{|control|
+			control.clear
+		}
 	}
+
+	* zero {
+		// controls.do{
+		// 	// control.zero;
+		// }
+	} 
 
 	init {|name, sender|
 		this.name = name;
@@ -270,9 +327,17 @@ OSCControlView {
 		this.controls.put(name, control);
 	}
 
+	addToggleControl {| ... arglist|
+		this.addPushControl(*arglist)
+	}
+
 	addMultiPushControl {|name, rows, columns|
 		var control = OSCMultiTouchControl0D(this.name, ('/' ++ name), rows, columns, sender);
 		this.controls.put(name, control);
+	}
+
+	addMultiToggleControl {| ... arglist|
+		this.addMultiPushControl(*arglist)
 	}
 
 	addSlideControl {|name|
