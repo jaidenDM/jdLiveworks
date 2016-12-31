@@ -1,3 +1,26 @@
+/*
+===========================================================================
+===========================================================================
+STRUCTURE:
+<single controls>::<general> <note> <trig>
+	<single-general>
+	<single-note>[<single-noteOn>, <single-noteOff>]
+
+	<group>[<single>]
+
+	<matrix>[<group>]
+===========================================================================
+TO DO:]
+	- Other types ? 
+
+	matrix - choose rows, cols ? 
+		store array of rows and array of columns?
+			seems inefficient>
+		single flat array and access
+		rowsDo, colsDo -> (  rowSelection)
+===========================================================================
+*/
+//
 MIDIControl {
 
 	var <>type, <>msgNum, <>chan, <>srcID, <>midifunc, <>ccFunc, arglist;
@@ -85,7 +108,7 @@ MIDIControlNote : MIDIControl {
 		}
 	}
 }
-
+/* GROUPS */
 MIDIControlGroup {
 	var <>type, <>msgNums, <>chan, <>srcID, <>group;
 
@@ -116,7 +139,7 @@ MIDIControlGroup {
 
 MIDINoteGroup {
 
-	var <>msgNums, <>chan, <>srcID, <>group;
+	var <>msgNums, <>chan, <>srcID, <>controls;
 
 	*new {|msgNums, chan, srcID|
 		^super.new.init(msgNums, chan, srcID);
@@ -125,14 +148,13 @@ MIDINoteGroup {
 	init {|msgNums, chan, srcID|
 		this.chan = chan;
 		this.srcID = srcID;
-
-		this.group = msgNums.collect{|msgNum|
+		this.controls = msgNums.collect{|msgNum|
 			MIDIControlNote(msgNum, chan, srcID)
 		}
 	}
 
 	on_ {|func|
-		group.do{|item, n|
+		controls.do{|item, n|
 			item
 			.args_(n)
 			.on_(func)
@@ -140,14 +162,73 @@ MIDINoteGroup {
 	}
 
 	off_ {|func|
-		group.do{|item, n|
+		controls.do{|item, n|
 			item
 			.args_(n)
 			.off_(func)
 		}
 	}
-}
 
+	at {|index|
+		controls[index]
+	}
+}
+/* Groups of Groups */
+MIDINoteMatrix {
+
+	var <>msgNumRows, <>chan, <>srcID, <>controls, <>numRows, <>numCols;
+
+	*new {|msgNumRows, chan, srcID|
+		^super.new.init(msgNumRows, chan, srcID);
+	}
+
+	init {|msgNumRows, chan, srcID|
+		this.chan = chan;
+		this.srcID = srcID;
+		this.msgNumRows = msgNumRows;
+		
+		this.numRows = msgNumRows.size;
+		this.numCols = msgNumRows[0].size;
+
+		this.controls = msgNumRows.collect{|msgNumRow|
+			msgNumRow.collect{|msgNum| 
+				MIDIControlNote(msgNum, chan, srcID)
+			}
+		}.flatten
+	}
+
+	on_ {|func|
+		numRows.do{|x|
+			controls[x * numRows].do{|control, y|
+				var i = x * numRows + y;
+				i.postln;
+				control
+					.args_(x, y, i)
+					.on_(func)
+			}
+		}
+	}
+
+	off_ {|func|
+		numRows.do{|x|
+			controls[x * numRows].do{|control, y|
+				var i = x * numRows + y;
+				i.postln;
+				control
+					.args_(x, y, i)
+					.off_(func)
+			}
+		}
+	}
+
+	// rowsDo {}
+
+	// colsDo {}
+
+	at {|x = 0, y = 0|
+		^controls[x][y]
+	}
+}
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
 MIDIController {
@@ -179,7 +260,7 @@ MIDIController {
 
 		controls = ();
 	}
-
+	/* MAKE CONTROLS */
 	addControl{|key, type, msgNum|
 		var control = MIDIControl(type, msgNum, this.chan, this.srcID);
 		controls.put(key, control)
@@ -200,13 +281,59 @@ MIDIController {
 		controls.put(key, group)
 	}
 
-	at {|i|
-		^controls[i]
+	addNoteMatrix {|key, msgNums2D|
+		var group = MIDINoteMatrix(msgNums2D, this.chan, this.srcID);
+		controls.put(key, group)
+	}
+	/* ACCESSING */
+	at {| key |
+		^controls[ key ]
 	}
 
+	/* CLEARING */
+
+	clear {
+		controls.clear;
+	}
 }
+/*
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+*/
+MIDIControlArray {
 
+	var <>array;
 
+	*newFrom {|newArray|
+		var res = super.new;
+		res.array = newArray;
+		^res
+	}
+
+	cc_ {| ... arglist|
+		array.do{|item|
+			item.cc_(*arglist)
+		}
+	}
+
+	tr_ {| ... arglist|
+		array.do{|item|
+			item.tr_(*arglist)
+		}
+	}
+
+	on_ {| ... arglist|
+		array.do{|item|
+			item.on_(*arglist)
+		}
+	}
+
+	off_ {| ... arglist|
+		array.do{|item|
+			item.off_(*arglist)
+		}
+	}	
+}
 
 
 

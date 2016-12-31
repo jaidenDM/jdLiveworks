@@ -54,7 +54,7 @@ OSCTouchControl1D : AbstractOSCTouchControl{
 
 		oscfunc !? { oscfunc.free };
 		oscfunc = OSCFunc({|v,n,c,s|
-			ccFunc.value(v[1], id);
+			ccFunc.value(*[v[1..v.size-1]++[id,n]].flatten);
 			/* TalkBack */
 			this.sendLabelMsg(label)
 		}, recvAddr);
