@@ -10,14 +10,39 @@ a =  MIDIControlArray.newFrom(g.controls[0..2]);
 
 
 g.clear
+(
+o = NetAddr("192.168.0.18", 9000);
+v = OSCControlView('/rout', o);
+v.addPushControl('push');
+v.addPushControl('tog');
 
 
-o = OSCTouchControl1D('/tcon','/xy')
-o.cc_{|x,y,i,n|
-	// x.postln;
-	// y.postln;
+t = OSCControlView('/tcon', o);
+t.addMultiFaderControl('faders',5);
+t.addMultiPushControl(\toggle,4,4);
+
+t[\toggle].on_{|v,x,y,i| 
+	x.post;' '.post;
+	y.postln;
 	i.postln;
-	// n.postln;
 }
+);
 
-o.recvAddr
+t[\toggle].controls[0][0].recvAddr
+
+a = OSCMatrixTouchControl('/tcon','/toggle',4,4,0)
+a.onReceive
+a[0,0]
+
+(
+v[\tog].on_({1.postln},'on');
+v[\tog].off_({0.postln},'off');
+v[\tog].clear;
+
+v[\tog].cc_{1.postln}
+);
+
+t[\faders].tr_{|v,n, id|
+	n.postln;
+};
+

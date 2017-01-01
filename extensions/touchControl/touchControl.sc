@@ -7,7 +7,7 @@
 
 */
 AbstractOSCTouchControl {
-	var  <>viewName, <>name, <>recvAddr, <>oscfunc, <>sender, <>label;
+	var  <>viewName, <>name, <>recvAddr, <>oscfunc, <>sender, <>label, <>respondFunc, <>idArgs;
 
 	/* TalkBack Messages */
 	send {|val|
@@ -31,167 +31,153 @@ AbstractOSCTouchControl {
 		this.zero;
 	}
 }
-/* Fader/Knob*/
-OSCTouchControl1D : AbstractOSCTouchControl{
-	
-	var <>id, <>ccFunc;
 
-	*new {|viewName, name, id, sender|
-		^super.new.init(viewName, name, id, sender).onReceive;
+OSCTouchControl : AbstractOSCTouchControl { 
+
+	*new {|viewName, name, sender ... idArgs|
+		^super.new.init(viewName, name, sender, idArgs).onReceive;
 	}
 
-	init {|viewName, name, id, sender|
+	init {|viewName, name, sender ... idArgs|
 
 		this.viewName = viewName; 
 		this.name = name; 
-		this.id = id; 
 		this.sender = sender;
-
+		this.idArgs = idArgs.flatten;
 		this.recvAddr = viewName.asSymbol ++ name.asSymbol;	
 	}
 	/* Control Function */
 	onReceive {
-
-		oscfunc !? { oscfunc.free };
+		oscfunc !? { oscfunc.free;};
 		oscfunc = OSCFunc({|v,n,c,s|
-			ccFunc.value(*[v[1..v.size-1]++[id,n]].flatten);
-			/* TalkBack */
-			this.sendLabelMsg(label)
+			respondFunc.value(*((v[1 .. v.size - 1]++[idArgs, n].flatten ).flatten) );
 		}, recvAddr);
 	}
 
 	cc_ {|func, label|
-		this.ccFunc = func;
-		this.label = label ? '';
+		this.respondFunc = func;
+		this.sendLabelMsg(label ? '');
 		this.onReceive;
 	}
 }
 
-/* xy-pad */
-OSCTouchControl2D : OSCTouchControl1D {
+OSCTrigControl : OSCTouchControl {
 
-	onReceive {
-		recvAddr = viewName.asSymbol ++ name.asSymbol;
-		oscfunc !? { oscfunc.free };
-		oscfunc = OSCFunc({|v,n,c,s|
-			ccFunc.value(v[1], v[2]);
-			this.sendLabelMsg(label)
-		}, recvAddr);
+	tr_ {|onFunc, offFunc, onLabel, offLabel|
+		this.cc_{| ... arglist|
+			if (arglist[0] <= 0) 
+			{ 
+				offFunc !? { offFunc.value(*arglist) };
+				this.sendLabelMsg(offLabel ? this.label ? '');
+			} { 
+				onFunc !? { onFunc.value(*arglist) };
+				this.sendLabelMsg(onLabel ? this.label ? '');
+			}
+		}
 	}
 }
-/* push, toggle */
-OSCTouchControl0D : OSCTouchControl1D {
 
-	var <>row, <>col,
-		<>onFunc,<>offFunc, <>offLabel;
+OSCPushControl : OSCTrigControl {
 
-	*new {|viewName, name, row, col, sender|
-		^super.new.init(viewName, name, row, col, sender).onReceive;
-	}
-
-	init {|viewName, name, row, col, sender|
-
-		this.viewName = viewName; 
-		this.name = name; 
-		this.row = row; 
-		this.col = col; 
-		this.sender = sender;	
-	}
-	/* Control Function */
-	onReceive {
-		recvAddr = viewName ++ name;
-		oscfunc !? { oscfunc.free };
-		oscfunc = OSCFunc({|v,n,c,s|
-			/* as Continuous Control */
-			this.ccFunc.value(v[1], row, col);
-			this.sendLabelMsg(label);
-			/* As Trigger */
-			if(v[1] == 0)
-			{
-				this.offFunc.value(v[1], row, col);
-				this.sendLabelMsg(label);
-			} {
-				this.onFunc.value(v[1], row, col);
-				this.sendLabelMsg(offLabel ? label);
-			};
-		}, recvAddr);
-	}
-
+	var	<>onFunc, <>offFunc;
 
 	on_ {|func, label|
-		this.onFunc = func;
-		this.label = label;
-		this.onReceive;
+		this.onFunc = {| ...  arglist|
+			func.value(*arglist);
+			this.label = label;
+		};
+		this.tr_(this.onFunc,this.offFunc);
 	}
 
 	off_ {|func, label|
-		this.offFunc = func;
-		this.onReceive;
+		this.offFunc = {|...  arglist|
+			func.value(*arglist);
+			this.label = label;
+		};
+		this.tr_(this.onFunc,this.offFunc);
 	}
 }
-/* 
 
-	Worth Doing? Adaptable to MIDI?
-	AbstractOSCTouchControl : AbstractTouchControl {
-
-	var <>viewName, <>name, <>sender, <>controls;	
-
-	doControls{|func|
-		controls.do{|control|
-			func.value(control)
-		}
-	}
-
-	clear {|val|
-		this.doControls{|control| control.clear }
-	}	
-
-	send {|val|
-		this.doControls{|control| control.send(val) }
-	}	
-	
-	zero {
-		send {|val|
-		this.doControls{|control| control.zero }
-	}	
-
-	at {|n|
-		^controls[n]
-	}
-} 
-*/
 /* Multi Fader/Knob */
-OSCMultiTouchControl1D {
+
+AbstractOSCMultiTouchOSC {
 
 	var <>viewName, <>name, <>num, <>sender, <>controls;
 
+	onReceive /*override*/ { } 
+
+	doAll { }
+
+	send_ {| ... arglist|
+		this.doAll({|control| control.send_(*arglist)})
+	}
+
+	cc_ {| ... arglist|
+		this.doAll({|control| control.cc_(*arglist)})
+	}
+
+	tr_ {|onFunc, offFunc, onLabel, offLabel|
+		this.controls{|control| control.tr_(onFunc, offFunc, onLabel, offLabel) }
+	}
+
+	on_ {| ... arglist|
+		this.doAll({|control| control.on_(*arglist)})
+	}
+
+	off_ {| ... arglist|
+		this.doAll({|control| control.off_(*arglist)})
+	}
+
+	zero {
+		this.send(0)
+	}
+
+	free {| ... arglist|
+		this.doAll({|control| control.free_(*arglist)})
+	}
+
+	clearLabels_ {| ... arglist|
+		this.doAll({|control| control.clearLabel_(*arglist)})
+	}
+
+	clear {
+		this.zero;
+		this.free;
+		this.clearLabels;
+	}	
+}
+
+OSCMultiTouchControl : AbstractOSCMultiTouchOSC {
+
 	*new {|viewName, name, num, sender|
-		^super.newCopyArgs(viewName, name, num, sender).onReceive;
+		^super.new.init(viewName, name, num, sender);
+	}
+
+	init {|viewName, name, num, sender|
+		this.viewName = viewName; 
+		this.name = name;
+		this.num = num;
+		this.sender = sender;
+		this.onReceive;
 	}
 
 	onReceive {
 		controls = (1..num ).collect{|id|
 			var numberedName = name ++ '/' ++ (id).asSymbol;
-			OSCTouchControl1D(viewName, numberedName, id - 1, sender);
+			OSCTouchControl(viewName, numberedName, sender, id - 1);
 		}
 	}
 
-	cc_ {|func, label|
+	doAll {|func|
 		this.controls.do{|control|
-			control.ccFunc = func;
-			control.label = label ? '';
-			control.onReceive;
+			func.value(control)
 		}
 	}
 
-	
-	/* TalkBack */
-	send {|val|
-		this.controls.do{|control|
-			control.send(val)
-		}
-	}	
+	/* TALKBACK */
+
 	/* ACCESS */
+
 	at {|n|
 		^controls[n]
 	}
@@ -203,89 +189,43 @@ OSCMultiTouchControl1D {
 		}
 	}
 	/* CLEAN UP */
-	clearLabels {
-		this.controls.do{|control|
-			control.sender.sendMsg(control.recvAddr ++ '/label', '')
-		}
-	}
-
-	zero {
-		this.controls.do{|control|
-			control.zero;
-		}
-	}
-
-	free {
-		this.controls.do{|control|
-			control.oscfunc.free;
-		}
-	}
-
-	clear {
-		this.free;
-		this.zero;
-		this.clearLabels;
-	}
 } 
-/* Multi Push/Toggle*/
-OSCMultiTouchControl0D {
 
-	var <>viewName, <>name, <>rows, <>columns, <>sender, <>controls;
+OSCMatrixTouchControl : AbstractOSCMultiTouchOSC {
+
+	var  <>rows, <>columns;
 
 	*new {|viewName, name, rows, columns, sender|
-		^super.newCopyArgs(viewName, name, rows, columns,sender).onReceive;
+		^super.new.init(viewName, name, rows, columns, sender).onReceive;
+	}
+
+	init {|viewName, name, rows, columns, sender|
+		this.viewName = viewName; 
+		this.name = name;
+		this.rows = rows;
+		this.columns = columns;
+		this.sender = sender;
 	}
 
 	onReceive {
-		controls = ( 1 .. rows ).collect{|row|
+
+		this.controls = ( 1 .. rows ).collect{|row|
 			( 1 .. columns ).collect{|column|
 				var numberedName = name ++ '/' ++ (row).asSymbol ++ '/' ++ column;
-				OSCTouchControl0D(viewName, numberedName, row-1, column-1).sender_(sender);
+				OSCPushControl(viewName, numberedName, sender,row-1, column-1, (row-1) * rows + (column-1));
 			}
-		}
+		};
 	}
 
-	cc_ {| ... arglist|
+	doAll {|func|
 		rows.do{|row|
 			columns.do{|column|
-				controls[row][column].cc_(*arglist);
-			}
-		}
-	}
-
-	on_ {| ... arglist|
-		rows.do{|row|
-			columns.do{|column|
-				controls[row][column].on_(*arglist);
-			}
-		}
-	}
-
-	off_ {| ... arglist|
-		rows.do{|row|
-			columns.do{|column|
-				controls[row][column].off_(*arglist);
-			}
-		}
-	}
-
-	onOff_ {| ... arglist|
-		rows.do{|row|
-			columns.do{|column|
-				controls[row][column].onOff_(*arglist);
+				func.value(controls[row][column])
 			}
 		}
 	}
 
 	/* TALKBACK */
-
-	send {|val|
-		rows.do{|row|
-			columns.do{|column|
-				controls[row][column].send(val);
-			}
-		}
-	}	
 
 	/* ACCESS */
 
@@ -298,42 +238,7 @@ OSCMultiTouchControl0D {
 		}
 	}
 
-	copySeries {|first,second, last|
-		var range = last - first;
-		^(0..range-1).collect{|n|
-			controls[n]
-		}
-	}
-
 	/* CLEAN UP */
-
-	zero {
-		this.send(0)
-	}
-
-	free {
-		this.send(0);
-		rows.do{|row|
-			columns.do{|column|
-				controls[row][column].oscfunc.free;
-			}
-		}
-	}
-
-	clearLabels {
-		this.send(0);
-		rows.do{|row|
-			columns.do{|column|
-				controls[row][column].sender.sendMsg(controls[row][column].recvAddr ++ '/label', '')
-			}
-		}
-	}
-
-	clear {
-		this.zero;
-		this.free;
-		this.clearLabels;
-	}	
 } 
 
 /* ------------------------------------------------------------------------
@@ -355,7 +260,7 @@ OSCControlView {
 
 	/* ADD CONTROLS  */
 	addPushControl {|name|
-		var control = OSCTouchControl0D(this.name, ('/' ++ name), sender);
+		var control = OSCPushControl(this.name, ('/' ++ name), sender);
 		this.controls.put(name, control);
 	}
 
@@ -364,7 +269,7 @@ OSCControlView {
 	}
 
 	addMultiPushControl {|name, rows, columns|
-		var control = OSCMultiTouchControl0D(this.name, ('/' ++ name), rows, columns, sender);
+		var control = OSCMatrixTouchControl(this.name, ('/' ++ name), rows, columns, sender);
 		this.controls.put(name, control);
 	}
 
@@ -373,27 +278,25 @@ OSCControlView {
 	}
 
 	addFaderControl {|name|
-		var control = OSCTouchControl1D(this.name, ('/' ++ name), nil, sender);
+		var control = OSCTouchControl(this.name, ('/' ++ name), sender);
 		this.controls.put(name, control);
 	}
 
-	addRotaryControl {|name|
-		var control = OSCTouchControl1D(this.name, ('/' ++ name), nil, sender);
-		this.controls.put(name, control);
+	addRotaryControl {| ... arglist|
+		this.addPushControl(*arglist)
 	}
 
-	addEncoderControl {|name|
-		var control = OSCTouchControl1D(this.name, ('/' ++ name), nil, sender);
-		this.controls.put(name, control);
+	addEncoderControl {| ... arglist|
+		this.addPushControl(*arglist)
 	}
 
 	addMultiFaderControl {|name, num|
-		var control = OSCMultiTouchControl1D(this.name, ('/' ++ name), num, sender);
+		var control = OSCMultiTouchControl(this.name, ('/' ++ name), num, sender);
 		this.controls.put(name, control);
 	}
 
 	addXYPadControl {|name|
-		var control = OSCTouchControl2D(this.name, ('/' ++ name), nil, sender);
+		var control = OSCTouchControl(this.name, ('/' ++ name), nil, sender);
 		this.controls.put(name, control);
 	}
 
