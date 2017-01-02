@@ -23,8 +23,6 @@ TO DO:]
 
 	- normalize value options : default true
 
-	
-
 ===========================================================================
 */
 //
@@ -32,6 +30,12 @@ MIDIControl {
 
 	var <>type, <>msgNum, <>chan, <>srcID, <>midifunc, <>ccFunc, arglist;
 	var <>serverTreeFunc;
+	var <>normalize;
+	var <>controlProxy, <>server;
+
+	classvar <>defaultPersist, <>defaultNormalize;
+
+	*initClass { defaultNormalize = defaultPersist = true }
 	
 	*new {|type, msgNum, chan, srcID|
 		^super.new.init(type,msgNum, chan, srcID).onReceive;
@@ -43,7 +47,21 @@ MIDIControl {
 		this.chan  = chan; 
 		this.srcID = srcID;
 
+		this.normalize_(true);
 		this.persist_(true);
+		this.makeNewProxy;
+		
+	}
+
+	makeNewProxy {
+
+		if (this.controlProxy.isNil) {
+			"here".postln;
+			this.controlProxy = 
+				NodeProxy
+				.control(this.server ? Server.default)
+				.source_({|val = 0, lag = 0.01| val.lag(lag)});
+		}
 	}
 
 	persist_ {|bool|
@@ -61,8 +79,17 @@ MIDIControl {
 	}
 
 	onReceive {
+
+		this.makeNewProxy;
+
 		midifunc !? { midifunc.free};
 		midifunc = MIDIFunc({|val, num, chan, src|
+			if (this.normalize) {
+				val = val.linlin(0,127,0,1);
+			};
+
+			this.controlProxy.set(\val,val);
+
 			ccFunc.value(val, num, *this.args)
 		}, msgNum, chan, type, srcID);
 	}

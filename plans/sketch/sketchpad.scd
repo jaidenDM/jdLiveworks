@@ -1,13 +1,25 @@
 1.postln;
 (
 	s.boot;
-MIDIClient.init;
-// MIDIIn.connect(2,MIDIClient.sources[2]);
-MIDIIn.connectAll;
-m = MIDIControl(\control,16);
-m.cc_{|v|v.postln};
 
+
+// m.persist_(false);
 )
+
+s.waitForBoot
+
+(
+	MIDIClient.init;
+// MIDIIn.connect(2,MIDIClient.sources[2]);
+	MIDIIn.connectAll;
+	m = MIDIControl(\control,16);
+	m.cc_{};
+)
+
+
+{
+	SinOsc.ar *  m.controlProxy.kr
+}.play
 
 m.serverTreeFunc.server
 

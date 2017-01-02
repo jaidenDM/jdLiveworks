@@ -5,13 +5,14 @@
 
 	MultiPush: better 2D access
 
-	- PersistOnServerTree
+	- PersistOnServerTree X
 
 	- Add Bus
 		.kr ( )
 
 */
-
+/* ------------------------------------------------------------------------
+------------------------------------------------------------------------- */
 AbstractOSCTouchControl {
 	var  <>viewName, <>name, <>recvAddr, <>oscfunc, <>sender, <>label, <>respondFunc, <>idArgs,
 	<>server, <>controlProxy,
@@ -134,8 +135,8 @@ OSCPushControl : OSCTrigControl {
 		this.tr_(this.onFunc,this.offFunc);
 	}
 }
-
-/* Multi Fader/Knob */
+/* ------------------------------------------------------------------------
+------------------------------------------------------------------------- */
 AbstractOSCMultiTouchOSC {
 
 	var <>viewName, <>name, <>num, <>sender, <>controls, <>serverTreeFunc;
