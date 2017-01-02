@@ -5,9 +5,17 @@
 
 	MultiPush: better 2D access
 
+	- PersistOnServerTree
+
+	- Add Bus
+		.kr ( )
+
 */
+
 AbstractOSCTouchControl {
-	var  <>viewName, <>name, <>recvAddr, <>oscfunc, <>sender, <>label, <>respondFunc, <>idArgs;
+	var  <>viewName, <>name, <>recvAddr, <>oscfunc, <>sender, <>label, <>respondFunc, <>idArgs,
+	<>server, <>controlProxy,
+	<>serverTreeFunc;
 
 	/* TalkBack Messages */
 	send {|val|
@@ -16,6 +24,22 @@ AbstractOSCTouchControl {
 
 	sendLabelMsg {|msg|
 		sender !? { sender.sendMsg(recvAddr ++ '/label', msg ? '') } 
+	}
+
+	/* persist */
+
+	persist_ {|bool|
+		if (bool)
+		{ this.addToTree }
+		{ this.removeFromTree}
+	}
+
+	addToTree {
+		serverTreeFunc = ServerTreeFunc.put({ this.onReceive });
+	}
+
+	removeFromTree {
+		serverTreeFunc.remove
 	}
 
 	/* CLEAN UP */
@@ -29,6 +53,7 @@ AbstractOSCTouchControl {
 		oscfunc.free;
 		this.clearLabel;
 		this.zero;
+		this.controlProxy.clear;
 	}
 }
 
@@ -45,11 +70,24 @@ OSCTouchControl : AbstractOSCTouchControl {
 		this.sender = sender;
 		this.idArgs = idArgs.flatten;
 		this.recvAddr = viewName.asSymbol ++ name.asSymbol;	
+		/* support more channels for xy */
+		this.controlProxy = this.controlProxy ? NodeProxy.control(this.server ? Server.default, 1);
+
+		this.persist_(true);
 	}
+
 	/* Control Function */
 	onReceive {
+
+		this.controlProxy !? { 
+			this.controlProxy.clear;
+		};
+		if (this.controlProxy.isNeutral)
+			{ this.controlProxy.source_({|val = 0| val.lag(\lag.kr(0.05)) }) };
+
 		oscfunc !? { oscfunc.free;};
 		oscfunc = OSCFunc({|v,n,c,s|
+			this.controlProxy.set(\val, v[1]);
 			respondFunc.value(*((v[1 .. v.size - 1]++[idArgs, n].flatten ).flatten) );
 		}, recvAddr);
 	}
@@ -62,7 +100,6 @@ OSCTouchControl : AbstractOSCTouchControl {
 }
 
 OSCTrigControl : OSCTouchControl {
-
 	tr_ {|onFunc, offFunc, onLabel, offLabel|
 		this.cc_{| ... arglist|
 			if (arglist[0] <= 0) 
@@ -99,14 +136,17 @@ OSCPushControl : OSCTrigControl {
 }
 
 /* Multi Fader/Knob */
-
 AbstractOSCMultiTouchOSC {
 
-	var <>viewName, <>name, <>num, <>sender, <>controls;
+	var <>viewName, <>name, <>num, <>sender, <>controls, <>serverTreeFunc;
 
-	onReceive /*override*/ { } 
+	onReceive {} 
 
-	doAll { }
+	doAll {}
+
+	persist_ {|arglist|
+		this.doAll({|control| control.persist_(*arglist)})
+	}
 
 	send_ {| ... arglist|
 		this.doAll({|control| control.send_(*arglist)})
@@ -159,6 +199,8 @@ OSCMultiTouchControl : AbstractOSCMultiTouchOSC {
 		this.num = num;
 		this.sender = sender;
 		this.onReceive;
+
+		this.persist_(true)
 	}
 
 	onReceive {
@@ -205,6 +247,8 @@ OSCMatrixTouchControl : AbstractOSCMultiTouchOSC {
 		this.rows = rows;
 		this.columns = columns;
 		this.sender = sender;
+
+		this.persist_(true);
 	}
 
 	onReceive {
@@ -243,7 +287,6 @@ OSCMatrixTouchControl : AbstractOSCMultiTouchOSC {
 
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
-
 OSCControlView {
 	
 	var <>name, <>controls, <>sender;
@@ -274,7 +317,7 @@ OSCControlView {
 	}
 
 	addMultiToggleControl {| ... arglist|
-		this.addMultiPushControl(*arglist)
+		this.addMultiPushControl(*arglist);
 	}
 
 	addFaderControl {|name|
@@ -306,7 +349,6 @@ OSCControlView {
 	} 
 	/* CLEAN UP */
 	clear {
-		/* clear all controls*/
 		controls.do{|control|
 			control.clear
 		}

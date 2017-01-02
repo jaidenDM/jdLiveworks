@@ -18,12 +18,20 @@ TO DO:]
 			seems inefficient>
 		single flat array and access
 		rowsDo, colsDo -> (  rowSelection)
+
+		use MIDIArray : contains methods for iterating and applying methods
+
+	- normalize value options : default true
+
+	
+
 ===========================================================================
 */
 //
 MIDIControl {
 
 	var <>type, <>msgNum, <>chan, <>srcID, <>midifunc, <>ccFunc, arglist;
+	var <>serverTreeFunc;
 	
 	*new {|type, msgNum, chan, srcID|
 		^super.new.init(type,msgNum, chan, srcID).onReceive;
@@ -34,6 +42,22 @@ MIDIControl {
 		this.msgNum  = msgNum; 
 		this.chan  = chan; 
 		this.srcID = srcID;
+
+		this.persist_(true);
+	}
+
+	persist_ {|bool|
+		if (bool)
+		{ this.addToTree }
+		{ this.removeFromTree}
+	}
+
+	addToTree {
+		serverTreeFunc = ServerTreeFunc.put({ this.onReceive });
+	}
+
+	removeFromTree {
+		serverTreeFunc.remove
 	}
 
 	onReceive {
@@ -56,6 +80,7 @@ MIDIControl {
 
 	clear {
 		midifunc.free;
+		this.removeFromTree
 	}
 }
 
@@ -111,6 +136,7 @@ MIDIControlNote : MIDIControl {
 /* GROUPS */
 MIDIControlGroup {
 	var <>type, <>msgNums, <>chan, <>srcID, <>group;
+	var <>serverTreeFunc;
 
 	*new {|type, msgNums, chan, srcID|
 		^super.new.init(type, msgNums, chan, srcID);
@@ -119,6 +145,12 @@ MIDIControlGroup {
 	init {
 		group = msgNums.collect{|msgNum|
 			MIDIControl(type, msgNum, chan, srcID)
+		}
+	}
+
+	persist_{ |bool|
+		group.do{|item, i|
+			item.persist_(bool)
 		}
 	}
 
@@ -197,11 +229,19 @@ MIDINoteMatrix {
 		}.flatten
 	}
 
+	persist_{ |bool|
+		numRows.do{|x|
+			controls[x * numRows].do{|control, y|
+				var i = x * numRows + y;
+				control.persist_(bool)
+			}
+		}
+	}
+
 	on_ {|func|
 		numRows.do{|x|
 			controls[x * numRows].do{|control, y|
 				var i = x * numRows + y;
-				i.postln;
 				control
 					.args_(x, y, i)
 					.on_(func)
@@ -213,7 +253,6 @@ MIDINoteMatrix {
 		numRows.do{|x|
 			controls[x * numRows].do{|control, y|
 				var i = x * numRows + y;
-				i.postln;
 				control
 					.args_(x, y, i)
 					.off_(func)
@@ -333,6 +372,12 @@ MIDIControlArray {
 			item.off_(*arglist)
 		}
 	}	
+
+	persist_{| ... arglist|
+		array.do{|item|
+			item.persist_(*arglist)
+		}
+	}
 }
 
 
