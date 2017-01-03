@@ -3,12 +3,15 @@
 
 	Re-Structuring Too Soon? 
 
-	MultiPush: better 2D access
+	MultiPush: better 2D access (MAKE OSC CONTROL ARRAY)
+	(give matrix class 2d array object-> same for midi)
 
 	- PersistOnServerTree X
 
 	- Add Bus
 		.kr ( )
+
+
 
 */
 /* ------------------------------------------------------------------------
@@ -140,21 +143,17 @@ OSCPushControl : OSCTrigControl {
 }
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
-AbstractControlGroup : AbstractControl {
 
+AbstractOSCMultiTouchOSC {
+
+	var <>viewName, <>name, <>num, <>sender;
 	var <>controls;
 
-	doAll {  }
+	doAll { this.subClassResponsibility(thisMethod)  }
 
 	persist_ {|arglist|
 		this.doAll({|control| control.persist_(*arglist)})
 	}
-
-}
-
-AbstractOSCMultiTouchOSC : AbstractControlGroup {
-
-	var <>viewName, <>name, <>num, <>sender;
 
 	send_ {| ... arglist|
 		this.doAll({|control| control.send_(*arglist)})

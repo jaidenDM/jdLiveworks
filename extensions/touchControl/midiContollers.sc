@@ -21,37 +21,17 @@ TO DO:]
 
 		use MIDIArray : contains methods for iterating and applying methods
 
-	- normalize value options : default true
+	- normalise value options : default true
 
 ===========================================================================
 */
 
 AbstractControl {
 
-	classvar <>defaultPersist, <>defaultNormalize;
-
 	var <>serverTreeFunc;
 	var <>controlProxy, <>server, <>numChannels;
 
-	*initClass { defaultNormalize = defaultPersist = true }
-
-	*new {|type, msgNum, chan, srcID, numChannels|
-		^super.new.init(type,msgNum, chan, srcID, numChannels).onReceive;
-	}
-
-	init {|type, msgNum, chan, srcID, numChannels|
-		this.type  = type; 
-		this.msgNum  = msgNum; 
-		this.chan  = chan; 
-		this.srcID = srcID;
-
-		this.normalize_(true);
-		this.persist_(true);
-
-		this.numChannels = numChannels;
-	}
-
-	onReceive { ^this.subclassResponsibility(thisMethod) }
+	onReceive { }
 
 	persist_ {|bool|
 		if (bool)
@@ -91,11 +71,36 @@ AbstractControl {
 	}
 }
 
-MIDIControl : AbstractControl {
+/* MIDI */
+AbstractMIDIControl : AbstractControl{
 
-	var <>type, <>msgNum, <>chan, <>srcID, <>midifunc, <>ccFunc, arglist;
+	/*classvar <>defaultPersist, <>defaultNormalize;
+
+	*initClass { defaultNormalize = defaultPersist = true }*/
+	var <>type, <>msgNum, <>chan, <>srcID, <>numChannels;
+	var <>normalise;
+
+	*new {|type, msgNum, chan, srcID, numChannels|
+		^super.new.init(type,msgNum, chan, srcID, numChannels).onReceive;
+	}
+
+	init {|type, msgNum, chan, srcID, numChannels|
+		this.type  = type; 
+		this.msgNum  = msgNum; 
+		this.chan  = chan; 
+		this.srcID = srcID;
+
+		this.normalize_(true);
+		this.persist_(true);
+
+		this.numChannels = numChannels;
+	}
+}
+
+MIDIControl : AbstractMIDIControl {
+
+	var <>midifunc, <>respondFunc, arglist;
 	// var <>serverTreeFunc;
-	var <>normalize;
 	// var <>controlProxy, <>server;
 
 	init {| ... arglist|
@@ -107,17 +112,17 @@ MIDIControl : AbstractControl {
 		this.resetProxySource;
 		midifunc !? { midifunc.free};
 		midifunc = MIDIFunc({|val, num, chan, src|
-			if (this.normalize) {
+			if (this.normalise) {
 				val = val.linlin(0,127,0,1);
 			};
 			this.setControlProxy(val);
 
-			ccFunc.value(val, num, *this.args)
+			respondFunc.value(val, num, *this.args)
 		}, msgNum, chan, type, srcID);
 	}
 
 	cc_ {|func ... arglist|
-		ccFunc = func;
+		respondFunc = func;
 		this.args_(*arglist);/*not tested*/
 		this.onReceive;
 	}
@@ -148,8 +153,8 @@ MIDIControlTrig : MIDIControl {
 MIDIControlNote : MIDIControl {
 	var <>controls;
 
-	init {
-		super.init;
+	init {|type, msgNum, chan, srcID, numChannels|
+		super.init(type, msgNum, chan, srcID, numChannels);
 		this.controls = 
 		( 
 			\on : MIDIControl(\noteOn, msgNum, chan, srcID, numChannels),
@@ -157,15 +162,15 @@ MIDIControlNote : MIDIControl {
 		);
 	}
 
-	on_ {|funcs ... arglist|
+	on_ {|func ... arglist|
 		controls[\on]
-		.args_(*this.args)
+		.args_(*arglist)
 		.cc_(func);
 	}
 
 	off_ {|func ... arglist |
 		controls[\off]
-		.args_(*this.args)
+		.args_(*arglist)
 		.cc_(func);
 	}
 
@@ -175,12 +180,22 @@ MIDIControlNote : MIDIControl {
 		}
 	}
 }
-/* Do abstract control for groups */
-/* GROUPS */
 
-AbstractMIDIControlGroup : AbstractControlGroup {
+/* GROUPS */
+/*.Is not really a MIDI Conctrol */
+AbstractMIDIControlGroup : AbstractMIDIControl {
 
 	var <>controls;
+
+	doAll {  }
+
+	persist_ {|arglist|
+		this.doAll({|control| control.persist_(*arglist)})
+	}
+
+	normalise_ {|arglist|
+		this.doAll({|control| control.normalise_(*arglist)})
+	}
 
 	send_ {| ... arglist|
 		this.doAll({|control| control.send_(*arglist)})
@@ -203,18 +218,19 @@ AbstractMIDIControlGroup : AbstractControlGroup {
 	}	
 }
 
-MIDIControlGroup : AbstractControl {
+MIDIControlGroup : AbstractMIDIControlGroup {
+	
 	/*var <>type, <>msgNums, <>chan, <>srcID,*/ 
-/*
+	/*
 	*new {|type, msgNums, chan, srcID|
 		^super.new.init(type, msgNums, chan, srcID);
 	}
 
 	init {|type, msgNums, chan, srcID|
-		*/
+	*/
 	init {|type, msgNums, chan, srcID, numChannels|
 		super.init(type, msgNums, chan, srcID, numChannels);
-		controls = msgNums.collect{|msgNum|
+		this.controls = msgNums.collect{|msgNum|
 			MIDIControl(type, msgNum, chan, srcID, numChannels)
 		}
 	}
@@ -245,12 +261,10 @@ MIDIControlGroup : AbstractControl {
 	// 	}
 	// }
 
-	msgNums { ^msgNum }
+	msgNums { ^this.msgNum }
 }
 
-
-
-MIDINoteGroup {
+MIDINoteGroup : MIDIControlGroup {
 
 	/*var <>msgNums, <>chan, <>srcID,<>controls;*/ 
 
@@ -261,7 +275,7 @@ MIDINoteGroup {
 	init {|type, msgNums, chan, srcID, numChannels|
 		super.init(type, msgNums, chan, srcID, numChannels);
 		this.controls = msgNums.collect{|msgNum|
-			MIDIControlNote(type, msgNums, chan, srcID, numChannels)
+			MIDIControlNote(type, msgNum, chan, srcID, numChannels)
 		}
 	}
 
@@ -274,13 +288,13 @@ MIDINoteGroup {
 	}
 
 	at {|index|
-		controls[index]
+		this.controls[index]
 	}
 }
 /* Groups of Groups */
-MIDINoteMatrix {
+MIDINoteMatrix : MIDINoteGroup {
 
-	/*var <>msgNumRows, <>chan, <>srcID, <>controls,*/ <>numRows, <>numCols;
+	var /*<>msgNumRows, <>chan, <>srcID, <>controls,*/ <>numRows, <>numCols;
 
 	/**new {|msgNumRows, chan, srcID|
 		^super.new.init(msgNumRows, chan, srcID);
@@ -293,22 +307,21 @@ MIDINoteMatrix {
 
 		this.controls = msgNumRows.collect{|msgNumRow|
 			msgNumRow.collect{|msgNum| 
-				MIDIControlNote(msgNum, chan, srcID)
+				MIDIControlNote(type, msgNum, chan, srcID, numChannels)
 			}
 		}.flatten
 	}
 
 	doAll {|func|
 		numRows.do{|x|
-			controls[x * numRows].do{|control, y|
+			this.controls[x * numRows].do{|control, y|
 				var i = x * numRows + y;
-				func.value(control.args_(x, y, i))
+				func.value(control)
 			}
 		}
 
 	}
-
-	persist_{ |bool|
+	/*persist_{ |bool|
 		numRows.do{|x|
 			controls[x * numRows].do{|control, y|
 				var i = x * numRows + y;
@@ -337,16 +350,16 @@ MIDINoteMatrix {
 					.off_(func)
 			}
 		}
-	}
-
+	}*/
+	/* trial 2d acces */
 	row {|i|
-		controls.reshape(numRows, numCols)[i]
+		^ MIDIControlArray(this.controls.reshape(numRows, numCols)[i])
 	}
 
 	// colsDo {}
 
 	at {|x = 0, y = 0|
-		^controls[x][y]
+		^this.controls[x][y]
 	}
 }
 /* ------------------------------------------------------------------------
@@ -381,28 +394,28 @@ MIDIController {
 		controls = ();
 	}
 	/* MAKE CONTROLS */
-	addControl{|key, type, msgNum|
-		var control = MIDIControl(type, msgNum, this.chan, this.srcID);
+	addControl{|key, type, msgNum, numChannels = 1|
+		var control = MIDIControl(type, msgNum, this.chan, this.srcID, numChannels);
 		controls.put(key, control)
 	}
 
-	addControlNote{|key, msgNum|
-		var control = MIDIControlNote (msgNum, this.chan, this.srcID);
+	addControlNote{|key, msgNum, numChannels = 1|
+		var control = MIDIControlNote (\note, msgNum, this.chan, this.srcID, numChannels);
 		controls.put(key, control)
 	}
 
-	addGroup {|key, type, msgNums|
-		var group = MIDIControlGroup(type, msgNums, this.chan, this.srcID);
+	addGroup {|key, type, msgNums, numChannels = 1|
+		var group = MIDIControlGroup(type, msgNums, this.chan, this.srcID, numChannels);
 		controls.put(key, group)
 	}
 
-	addNoteGroup {|key, msgNums|
-		var group = MIDINoteGroup(msgNums, this.chan, this.srcID);
+	addNoteGroup {|key, msgNums, numChannels = 1|
+		var group = MIDINoteGroup(\note, msgNums, this.chan, this.srcID, numChannels);
 		controls.put(key, group)
 	}
 
-	addNoteMatrix {|key, msgNums2D|
-		var group = MIDINoteMatrix(msgNums2D, this.chan, this.srcID);
+	addNoteMatrix {|key, msgNums2D, numChannels = 1|
+		var group = MIDINoteMatrix(\note, msgNums2D, this.chan, this.srcID, numChannels);
 		controls.put(key, group)
 	}
 	/* ACCESSING */
@@ -459,6 +472,13 @@ MIDIControlArray {
 			item.persist_(*arglist)
 		}
 	}
+
+	normalise_{| ... arglist|
+		array.do{|item|
+			item.normalise_(*arglist)
+		}
+	}
+
 }
 
 

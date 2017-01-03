@@ -158,7 +158,11 @@ c = Child(4,5,6)
 
 c.a
 
+m = MIDINoteMatrix(
+	\note,[48,52,54,58,49,51,68,56,60,59,56,55,61,69,65,63].reshape(4,4).reverse
+);
 
+m.row(0).
 
 
 
