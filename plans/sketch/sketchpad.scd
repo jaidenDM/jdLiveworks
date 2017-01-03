@@ -27,10 +27,13 @@ m.persist_(false)
 
 m.serverTreeFunc.object
 
-g = MIDINoteGroup([48,52,54,58]);
+g = MIDIControl(\control, 16);
+
+g.msgNum
+g.controlProxy
+
 
 a =  MIDIControlArray.newFrom(g.controls[0..2]);
-
 
 g.clear
 (
@@ -41,32 +44,60 @@ v.addPushControl('push');
 v.addPushControl('tog');
 v.addFaderControl('cc');
 
-t = OSCControlView('/tcon', o);
-t.addMultiFaderControl('faders',5);
-t.addMultiPushControl(\toggle,4,4);
 
-t[\toggle].on_{|v,x,y,i| 
-	x.post;' '.post;
-	y.postln;
-	i.postln;
-}
+
 );
 
+
+v[\tog].controlProxy.fadeTime_(0.01);
+
+a = NodeProxy.control(s,1).source_(0);
+a.source_(1)
+{ SinOsc.ar([20,200].asSpec.map(a.kr).poll) }.scope
+
+{ SinOsc.ar() * 0.1) }.play;
+
+v[\tog].kr([])
+
+
+
+
+
+
+v[\tog].on_({1.postln},'on');
+v[\tog].off_({0.postln},'off');
+v[\tog].clear;
+
+AbstractControl().onReceive
+
 t[\toggle].controls[0][0].recvAddr
+
+a = NodeProxy.control(s,1).source_{|v=1|v};
+a.set(\v, 1);
+a.get(\v);
+{ a.kr }.play
 
 a = OSCMatrixTouchControl('/tcon','/toggle',4,4,0)
 a.onReceive
 a[0,0]
 
 (
-v[\tog].on_({1.postln},'on');
-v[\tog].off_({0.postln},'off');
-v[\tog].clear;
 
-v[\cc].controlProxy.source
+a = NodeProxy.control(s,1).source_(0);
+a.fadeTime_(0.5)
+a.source_(100)
+a.source
+{a.kr}.scope;
+
+NodeProxy
+{ v[\cc].controlProxy.kr }.scope
+v[\tog].controlProxy.get(\val)
+
+v[\cc].cc_{}
+
+
 ß
-BusBlug
-v[\cc].controlBus
+v[\cc].c
 { SinOsc.ar * v[\cc].controlBus.kr }.play
 );
 
@@ -118,6 +149,14 @@ s.options.sampleRate_(44100);s.reboot
 NodeWatcher
 
 
+
+p  =Parent(1,2)
+
+p.b
+
+c = Child(4,5,6)
+
+c.a
 
 
 

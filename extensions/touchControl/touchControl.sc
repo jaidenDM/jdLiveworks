@@ -13,10 +13,10 @@
 */
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
-AbstractOSCTouchControl {
-	var  <>viewName, <>name, <>recvAddr, <>oscfunc, <>sender, <>label, <>respondFunc, <>idArgs,
-	<>server, <>controlProxy,
-	<>serverTreeFunc;
+AbstractOSCTouchControl : AbstractControl {
+	var  <>viewName, <>name, <>recvAddr, <>oscfunc, <>sender, <>label, <>respondFunc, <>idArgs;
+	// <>server, <>controlProxy,
+	// <>serverTreeFunc;
 
 	/* TalkBack Messages */
 	send {|val|
@@ -29,19 +29,19 @@ AbstractOSCTouchControl {
 
 	/* persist */
 
-	persist_ {|bool|
-		if (bool)
-		{ this.addToTree }
-		{ this.removeFromTree}
-	}
+	// persist_ {|bool|
+	// 	if (bool)
+	// 	{ this.addToTree }
+	// 	{ this.removeFromTree}
+	// }
 
-	addToTree {
-		serverTreeFunc = ServerTreeFunc.put({ this.onReceive });
-	}
+	// addToTree {
+	// 	serverTreeFunc = ServerTreeFunc.put({ this.onReceive });
+	// }
 
-	removeFromTree {
-		serverTreeFunc.remove
-	}
+	// removeFromTree {
+	// 	serverTreeFunc.remove
+	// }
 
 	/* CLEAN UP */
 	zero { sender.sendMsg(recvAddr, 0 )}
@@ -72,23 +72,26 @@ OSCTouchControl : AbstractOSCTouchControl {
 		this.idArgs = idArgs.flatten;
 		this.recvAddr = viewName.asSymbol ++ name.asSymbol;	
 		/* support more channels for xy */
-		this.controlProxy = this.controlProxy ? NodeProxy.control(this.server ? Server.default, 1);
-
+		// this.controlProxy = this.controlProxy ? NodeProxy.control(this.server ? Server.default, 1);
+		this.resetProxySource;
 		this.persist_(true);
 	}
 
 	/* Control Function */
 	onReceive {
 
-		this.controlProxy !? { 
-			this.controlProxy.clear;
-		};
-		if (this.controlProxy.isNeutral)
-			{ this.controlProxy.source_({|val = 0| val.lag(\lag.kr(0.05)) }) };
+		// this.controlProxy !? { 
+		// 	this.controlProxy.clear;
+		// };
+		// if (this.controlProxy.isNeutral)
+		// 	{ this.controlProxy.source_({|val = 0| val.lag(\lag.kr(0.05)) }) };
+		this.resetProxySource;
 
 		oscfunc !? { oscfunc.free;};
 		oscfunc = OSCFunc({|v,n,c,s|
-			this.controlProxy.set(\val, v[1]);
+			
+			this.setControlProxy(v[1]);
+
 			respondFunc.value(*((v[1 .. v.size - 1]++[idArgs, n].flatten ).flatten) );
 		}, recvAddr);
 	}
@@ -137,17 +140,21 @@ OSCPushControl : OSCTrigControl {
 }
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
-AbstractOSCMultiTouchOSC {
+AbstractControlGroup : AbstractControl {
 
-	var <>viewName, <>name, <>num, <>sender, <>controls, <>serverTreeFunc;
+	var <>controls;
 
-	onReceive {} 
-
-	doAll {}
+	doAll {  }
 
 	persist_ {|arglist|
 		this.doAll({|control| control.persist_(*arglist)})
 	}
+
+}
+
+AbstractOSCMultiTouchOSC : AbstractControlGroup {
+
+	var <>viewName, <>name, <>num, <>sender;
 
 	send_ {| ... arglist|
 		this.doAll({|control| control.send_(*arglist)})
@@ -157,8 +164,8 @@ AbstractOSCMultiTouchOSC {
 		this.doAll({|control| control.cc_(*arglist)})
 	}
 
-	tr_ {|onFunc, offFunc, onLabel, offLabel|
-		this.controls{|control| control.tr_(onFunc, offFunc, onLabel, offLabel) }
+	tr_ {| ... arglist|
+		this.controls{|control| control.tr_(*arglist) }
 	}
 
 	on_ {| ... arglist|
@@ -212,8 +219,8 @@ OSCMultiTouchControl : AbstractOSCMultiTouchOSC {
 	}
 
 	doAll {|func|
-		this.controls.do{|control|
-			func.value(control)
+		this.controls.do{| ... controlAndArgs|
+			func.value(*controlAndArgs)
 		}
 	}
 
