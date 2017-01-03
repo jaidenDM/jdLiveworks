@@ -63,21 +63,22 @@ AbstractOSCTouchControl : AbstractControl {
 
 OSCTouchControl : AbstractOSCTouchControl { 
 
-	*new {|viewName, name, sender ... idArgs|
-		^super.new.init(viewName, name, sender, idArgs).onReceive;
+	*new {|viewName, name, sender, numChannels ... idArgs|
+		^super.new.init(viewName, name, sender, numChannels, idArgs).onReceive;
 	}
 
-	init {|viewName, name, sender ... idArgs|
-
+	init {|viewName, name, sender, numChannels ... idArgs|
+		super.init;
 		this.viewName = viewName; 
 		this.name = name; 
 		this.sender = sender;
+		this.numChannels = numChannels;
 		this.idArgs = idArgs.flatten;
 		this.recvAddr = viewName.asSymbol ++ name.asSymbol;	
 		/* support more channels for xy */
 		// this.controlProxy = this.controlProxy ? NodeProxy.control(this.server ? Server.default, 1);
-		this.resetProxySource;
-		this.persist_(true);
+		// this.resetProxySource;
+		// this.persist_(true);
 	}
 
 	/* Control Function */
@@ -93,9 +94,9 @@ OSCTouchControl : AbstractOSCTouchControl {
 		oscfunc !? { oscfunc.free;};
 		oscfunc = OSCFunc({|v,n,c,s|
 			
-			this.setControlProxy(v[1]);
+			this.setControlProxy(v[1 .. this.numChannels]);
 
-			respondFunc.value(*((v[1 .. v.size - 1]++[idArgs, n].flatten ).flatten) );
+			respondFunc.value(*((v[1 .. this.numChannels]++[idArgs, n].flatten ).flatten) );
 		}, recvAddr);
 	}
 
@@ -144,10 +145,10 @@ OSCPushControl : OSCTrigControl {
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
 
-AbstractOSCMultiTouchOSC {
+AbstractOSCMultiTouchOSC : AbstractControl {
 
-	var <>viewName, <>name, <>num, <>sender;
-	var <>controls;
+	//var <>viewName, <>name, <>sender;
+	var <>controls, <>numControls;
 
 	doAll { this.subClassResponsibility(thisMethod)  }
 
@@ -195,27 +196,30 @@ AbstractOSCMultiTouchOSC {
 }
 
 OSCMultiTouchControl : AbstractOSCMultiTouchOSC {
-
-	*new {|viewName, name, num, sender|
-		^super.new.init(viewName, name, num, sender);
+	/* unlike midi control group MultiTouchControls come as a set by default from the app */
+	*new {|viewName, name, numControls, sender, numChannels|
+		^super.new.init(viewName, name, numControls, sender, numChannels);
 	}
 
-	init {|viewName, name, num, sender|
-		this.viewName = viewName; 
-		this.name = name;
-		this.num = num;
-		this.sender = sender;
-		this.onReceive;
+	// *newFromArray { }
 
-		this.persist_(true)
-	}
-
-	onReceive {
-		controls = (1..num ).collect{|id|
+	init {|viewName, name, numControls, sender, numChannels|
+		super.init;//Calls persist
+		// this.viewName = viewName; 
+		// this.name = name;
+		this.numControls = numControls;
+		// this.numChannels = numChannels;
+		// this.sender = sender;
+		// this.onReceive;
+		this.controls = (1..numControls ).collect{|id|
 			var numberedName = name ++ '/' ++ (id).asSymbol;
-			OSCTouchControl(viewName, numberedName, sender, id - 1);
+			OSCTouchControl(viewName, numberedName, sender, numChannels, id - 1);
 		}
 	}
+
+	// onReceive {
+		
+	// }
 
 	doAll {|func|
 		this.controls.do{| ... controlAndArgs|
@@ -234,7 +238,7 @@ OSCMultiTouchControl : AbstractOSCMultiTouchOSC {
 	copySeries {|first,second, last|
 		var range = last - first;
 		^(0..range-1).collect{|n|
-			controls[n]
+			this.controls[n]
 		}
 	}
 	/* CLEAN UP */
@@ -249,16 +253,26 @@ OSCMatrixTouchControl : AbstractOSCMultiTouchOSC {
 	}
 
 	init {|viewName, name, rows, columns, sender|
-		this.viewName = viewName; 
-		this.name = name;
+		super.init;
 		this.rows = rows;
 		this.columns = columns;
-		this.sender = sender;
+		this.controls = ( 1 .. rows ).collect{|row|
+			( 1 .. columns ).collect{|column|
+				var numberedName = name ++ '/' ++ (row).asSymbol ++ '/' ++ column;
+				OSCPushControl(viewName, numberedName, sender, 1, row-1, column-1, (row-1) * rows + (column-1));
+			}
+		};
 
-		this.persist_(true);
+		// this.viewName = viewName; 
+		// this.name = name;
+		// this.rows = rows;
+		// this.columns = columns;
+		// this.sender = sender;
+
+		// this.persist_(true);
 	}
 
-	onReceive {
+	/*onReceive {
 
 		this.controls = ( 1 .. rows ).collect{|row|
 			( 1 .. columns ).collect{|column|
@@ -266,7 +280,7 @@ OSCMatrixTouchControl : AbstractOSCMultiTouchOSC {
 				OSCPushControl(viewName, numberedName, sender,row-1, column-1, (row-1) * rows + (column-1));
 			}
 		};
-	}
+	}*/
 
 	doAll {|func|
 		rows.do{|row|
@@ -319,7 +333,7 @@ OSCControlView {
 	}
 
 	addMultiPushControl {|name, rows, columns|
-		var control = OSCMatrixTouchControl(this.name, ('/' ++ name), rows, columns, sender);
+		var control = OSCMatrixTouchControl.newConsecutive(this.name, ('/' ++ name), rows, columns, sender);
 		this.controls.put(name, control);
 	}
 
@@ -340,13 +354,13 @@ OSCControlView {
 		this.addPushControl(*arglist)
 	}
 
-	addMultiFaderControl {|name, num|
-		var control = OSCMultiTouchControl(this.name, ('/' ++ name), num, sender);
+	addMultiFaderControl {|name, numControls|
+		var control = OSCMultiTouchControl.newConsecutive(this.name, ('/' ++ name), numControls, sender);
 		this.controls.put(name, control);
 	}
 
 	addXYPadControl {|name|
-		var control = OSCTouchControl(this.name, ('/' ++ name), nil, sender);
+		var control = OSCTouchControl(this.name, ('/' ++ name), sender, 2);
 		this.controls.put(name, control);
 	}
 

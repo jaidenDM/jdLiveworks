@@ -148,21 +148,57 @@ s.options.sampleRate_(44100);s.reboot
 
 NodeWatcher
 
+a = {| ... b| b.postln}
 
+a.value(3,4,5)
 
 p  =Parent(1,2)
 
 p.b
 
 c = Child(4,5,6)
-
+4.collect{|i|i}
 c.a
+(
+MIDIClient.init;
+MIDIIn.connectAll;
+m = MIDINoteMatrix( \note,[48,52,54,58,49,51,68,56,60,59,56,55,61,69,65,63].reshape(4,4).reverse );
+m.on_{|v,n,x,y,i|
+	v.postln;
+	n.postln;
+	x.postln;
+	y.postln;
+	i.postln;
+}
 
-m = MIDINoteMatrix(
+)
+
+m[0,0].chan
+
+m = MIDINoteFroup(
 	\note,[48,52,54,58,49,51,68,56,60,59,56,55,61,69,65,63].reshape(4,4).reverse
 );
+m.col(1)
+m[0,0]
 
-m.row(0).
+m.controls
+
+m.controls.at(0)
+
+s.boot;o = NetAddr("192.168.0.18", 9000);
+c = OSCMultiTouchControl.new('/tcon','/faders',5,1,o);
+t = OSCMatrixTouchControl.new('/tcon','/toggle',4,4,o);
+
+t.on_{|v|v.postln}
+
+
+c.cc_{|v,n|v.postln}
+
+c.controls[0].recvAddr
+
+
+
+
 
 
 
