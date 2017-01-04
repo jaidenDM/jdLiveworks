@@ -282,9 +282,27 @@ a[\mpush][0,1].on_{ r.endRecording;'done'.postln };
 
 r = ControlDataRecorder();
 
-[{r.set(\freq,400.rand);r.addEntry;},{r.addEntryToNewStore }].choose.value
+[{r.set(\freq,400.rand.postln);r.addEntry;},{r.addEntryToNewStore }].choose.value
 r.endRecording;
-r.asPseq
+
+r.data
+f = RecursiveArray.collect(r.data,
+	arrayFunc:{|arr|
+		// Pseq(arr)
+		arr
+		},
+	elementFunc:
+	{|el| 
+		var ret=0;
+		el.keysValuesDo{|key, val| 
+			if (key == \dur) { ret = val } 
+		};
+		ret;
+	}
+)
+
+f
+
 r.data
 r.times
 .flatten.normalizeSum * 4;

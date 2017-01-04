@@ -13,7 +13,7 @@
 
 	Flexible Management for Deeper Nests
 
-	
+	Get rid of timeArrray -> just use dur in event return recursive collect [\dur]
 	
 }
 */
@@ -68,16 +68,17 @@ ControlDataRecorder {
 	}
 
 	addEntryToNewStore {
-		this.addEntry;
 		this.endRecording;
 		this.addEntry;
 	}
 
 	endRecording {
-		this.addEntry;
-		isRecording = false;
-		storedTimes = storedTimes.add(runningTimes.copy);
-		storedData = storedData.add(runningData.copy);
+		if (this.isRecording) {
+			this.addEntry;
+			isRecording = false;
+			storedTimes = storedTimes.add(runningTimes.copy);
+			storedData = storedData.add(runningData.copy);
+		}
 	}
 
 	set {| ... currentDataPairs|
@@ -91,13 +92,24 @@ ControlDataRecorder {
 
 	data { ^this.storedData }
 
-	asSeqs {
-		^this.storedData
+	asArray {|aKey| 
+		RecursiveArray.collect(
+			this.data, 
+			elementFunc: {|el|
+				var ret;
+				el.keysValuesDo{|key, val|
+					if (key == aKey) { ret = val }
+				};
+				ret;
+			}
+		)
 	}
 
-	asPseq {
-		^RecursiveArray(this.times)
-	}
+	asPseq {|key| }
+
+	asDseq {|key| }
+
+
 
 }
 
