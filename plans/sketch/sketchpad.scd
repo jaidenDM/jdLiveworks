@@ -173,6 +173,11 @@ m.on_{|v,n,x,y,i|
 
 )
 
+a = MIDIControlNote(48)
+
+a.on_{|v|v.postln}
+a.controls[\on].msgNum
+
 m[0,0].chan
 
 m = MIDINoteFroup(
@@ -195,6 +200,162 @@ t.on_{|v|v.postln}
 c.cc_{|v,n|v.postln}
 
 c.controls[0].recvAddr
+
+
+
+
+
+(
+MIDIClient.init;
+MIDIIn.connectAll;
+o = NetAddr("192.168.0.18", 9000);
+a = OSCControlView('/tcon',o);
+)
+a.addXYPadControl('xy');
+a.addMultiFaderControl('faders',5);
+
+
+
+
+/* KNOWAH / LOOPAH */
+
+[];
+
+on input add get time since last entry and add to times
+
+start { wait for first trig }
+
+onTrig { startPoint }
+
+onNext { makeNewPoint; get difference between newest and previous point; }
+
+end { onNext; stop and clean up }
+
+
+t = TempoClock(1).permanent_(true);
+
+
+o = OSCPushControl('/rout','/tog')
+
+(
+~clock = TempoClock.default;
+
+~times = [];
+
+~resetT0 = {
+	~t0 = ~clock.beats;
+};
+
+~begin = { ~resetT0.value };
+
+~sinceLast = {
+	~clock.beats - ~t0;
+	// ~resetT0;
+};
+
+~nextPoint = {
+	var entry;
+	entry = ~sinceLast.value;
+	~times = ~times.add(entry);
+	~resetT0.value;
+};
+
+)
+
+~resetT0.value;
+
+
+(
+MIDIClient.init;
+MIDIIn.connectAll;
+o = NetAddr("192.168.0.18", 9000);
+a = OSCControlView('/tcon',o);
+a.addMultiPushControl('mpush',1,4);
+)
+
+(
+a[\mpush][0,0].on_{ r.set(\freq,400.rand.postln, \amp,0.3);r.addEntry };
+a[\mpush][0,1].on_{ r.endRecording;'done'.postln };
+)
+
+
+
+r = ControlDataRecorder();
+
+[{r.set(\freq,400.rand);r.addEntry;},{r.addEntryToNewStore }].choose.value
+r.endRecording;
+r.asPseq
+r.data
+r.times
+.flatten.normalizeSum * 4;
+
+
+
+r.data.asStream.next
+PEvent
+
+Ppar([
+Pseq, inf),
+Pbind(\freq,10000,\amp,0.1,\legato,0.3)
+]).play
+Pbindef(\knowah, r.data)
+
+
+[[0,1],[2,4]]
+
+
+w = [0,1,[2,3,[4,5]],[7,8]];
+a = Pseq(RecursiveArray.collect(w,{|a|Pseq(a)}, {|v| v+10});)
+a
+a = a.asStream
+a.next
+
+~f = {|e| e+10};
+~arrextr = {|arr| 
+	var res = [];
+	var hasSubArray = false;
+	arr.do{|el|
+		if (el.isArray) { 
+			hasSubArray = true;
+			res = res.add(~arrextr.value(el)).postln
+		} {
+			hasSubArray = false;
+			res = res.add(~f.value(el))
+		}
+	};
+	"pass".postln;
+	hasSubArray.postln;
+	res
+};
+
+q = ~arrextr.(w);
+
+
+a = q.asStream
+a.next
+
+Pbind(\dur,q).play
+
+q 
+w
+
+terracedFind  = {|aKey|
+		var res = [];
+		this.storedData.do{|item|
+			if (item.isArray) { res.add(this.terracedFind(item)) };
+			if {
+				item.keysValuesDo{|key, value|
+					if (key == aKey) {  res = res.add(value) }
+				}
+			}
+		}
+		^res;
+	}
+
+
+
+Function
+
 
 
 

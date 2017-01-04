@@ -64,6 +64,12 @@ AbstractControl {
 				.control(this.server ? Server.default, (this.numChannels ? 1))
 				.fadeTime_(0.05)
 				.source_(0);
+		};
+
+		if (this.controlProxy.isNeutral) {
+			this.controlProxy
+				.fadeTime_(0.05)
+				.source_(0);
 		}
 	}
 
@@ -109,12 +115,10 @@ AbstractMIDIControl : AbstractControl{
 MIDIControl : AbstractMIDIControl {
 
 	var <>midifunc, <>respondFunc, arglist;
-	// var <>serverTreeFunc;
-	// var <>controlProxy, <>server;
 
 	init {| ... arglist|
 		super.init(*arglist);
-		this.resetProxySource;/* unnecessary? */
+		this.resetProxySource;
 	}
 
 	onReceive {
@@ -124,6 +128,7 @@ MIDIControl : AbstractMIDIControl {
 			if (this.normalise) {
 				val = val.linlin(0,127,0,1);
 			};
+
 			this.setControlProxy(val);
 
 			respondFunc.value(val, num, *this.args)
@@ -132,7 +137,7 @@ MIDIControl : AbstractMIDIControl {
 
 	cc_ {|func ... arglist|
 		respondFunc = func;
-		this.args_(*arglist);/*not tested*/
+		this.args_(*arglist);
 		this.onReceive;
 	}
 
@@ -144,10 +149,7 @@ MIDIControl : AbstractMIDIControl {
 		}
 	}
 
-	args_ {| ... aArglist|
-		// aArglist.postln;
-		arglist = aArglist ;
-	}
+	args_ {| ... aArglist| arglist = aArglist }
 
 	args { ^arglist }
 
@@ -157,22 +159,17 @@ MIDIControl : AbstractMIDIControl {
 	}
 }
 
-MIDIControlTrig : MIDIControl {
-
-	/*tr_ {|onFunc, offFunc|
-		this.cc_{|val,num|
-			if (val =< 0)
-			{ onFunc.value(val,num)}
-			{ offFunc.value(val,num)}
-		}
-	}*/
-}
+MIDIControlTrig : MIDIControl {  }
 
 MIDIControlNote : MIDIControl {
 	var <>controls;
 
-	init {|type, msgNum, chan, srcID, numChannels|
-		super.init(type, msgNum, chan, srcID, numChannels);
+	*new {|msgNum, chan, srcID, numChannels|
+		^super.new.init(msgNum, chan, srcID, numChannels).onReceive;
+	}
+
+	init {|msgNum, chan, srcID, numChannels|
+		super.init(msgNum, chan, srcID, numChannels);
 		this.controls = 
 		( 
 			\on : MIDIControl(\noteOn, msgNum, chan, srcID, numChannels),
@@ -194,8 +191,6 @@ AbstractMIDIControlGroup : AbstractControl {
 	var <>controls;
 
 	doAll { ^this.subclassResponsibility(thisMethod) }
-
-	// msgNums { ^msgNum }
 
 	persist_ {|func|
 		this.doAll({|control ... arglist| control.persist_(func, *arglist)})
@@ -227,15 +222,7 @@ AbstractMIDIControlGroup : AbstractControl {
 }
 
 MIDIControlGroup : AbstractMIDIControlGroup {
-	
-	/*var <>type, <>msgNums, <>chan, <>srcID,*/ 
-	/*
-	*new {|type, msgNums, chan, srcID|
-		^super.new.init(type, msgNums, chan, srcID);
-	}
 
-	init {|type, msgNums, chan, srcID|
-	*/
 	var <>numControls;
 
 	*new {|type, msgNums, chan, srcID, numChannels|
@@ -257,56 +244,20 @@ MIDIControlGroup : AbstractMIDIControlGroup {
 		} 
 	}
 
-	// persist_{ |bool|
-	// 	controls.do{|item, i|
-	// 		item.persist_(bool)
-	// 	}
-	// }
-
-	// cc_{|func|
-	// 	controls.do{|item, n|
-	// 		item
-	// 		.args_(n)
-	// 		.cc_(func)
-	// 	}
-	// }
-
-	// clear {
-	// 	controls.do{|item|
-	// 		item.clear
-	// 	}
-	// }
 }
 
 MIDINoteGroup : MIDIControlGroup {
 
-	/*var <>msgNums, <>chan, <>srcID,<>controls;*/ 
-
-	// *new {|type, msgNums, chan, srcID, numChannels|
-		// ^super.new.init(type, msgNums, chan, srcID, numChannels);
-	// }
-	// *new {|type, msgNums, chan, srcID, numChannels|
-	// 	^super.new.init(type, msgNums, chan, srcID, numChannels);
-	// }
-
-	init {|type, msgNums, chan, srcID, numChannels|
-		super.init(type, msgNums, chan, srcID, numChannels);
+	init {|msgNums, chan, srcID, numChannels|
+		super.init(msgNums, chan, srcID, numChannels);
 		this.controls = msgNums.collect{|msgNum|
-			MIDIControlNote(type, msgNum, chan, srcID, numChannels)
+			MIDIControlNote(msgNum, chan, srcID, numChannels)
 		}
 	}
 
 	on_ {|func| this.doAll({|control ... arglist| control.on_(func, *arglist)}) }
 
 	off_ {|func| this.doAll({|control ... arglist| control.off_(func, *arglist)}) }
-
-	// on_ {| ... arglist|
-	// 	this.doAll({|control| control.on_(*arglist)})
-	// }
-
-	// off_ {| ... arglist|
-	// 	this.doAll({|control| control.off_(*arglist)})
-	// }
 
 	at {|index|
 		this.controls[index]
@@ -315,13 +266,9 @@ MIDINoteGroup : MIDIControlGroup {
 
 MIDINoteMatrix : MIDINoteGroup {
 
-	var /*<>msgNumRows, <>chan, <>srcID, <>controls,*/ <>numRows, <>numCols;
+	var <>numRows, <>numCols;
 
-	// *new {|type, msgNums, chan, srcID, numChannels|
-	// 	^super.new.init(type, msgNums, chan, srcID, numChannels);
-	// }
-
-	init {|type, msgNumRows, chan, srcID, numChannels|
+	init {|msgNumRows, chan, srcID, numChannels|
 		super.init;
 		this.numRows = msgNumRows.size;
 		this.numCols = msgNumRows[0].size;
@@ -329,7 +276,7 @@ MIDINoteMatrix : MIDINoteGroup {
 		this.controls = 
 		msgNumRows.collect{|msgNumRow|
 			msgNumRow.collect{|msgNum| 
-				MIDIControlNote(type, msgNum, chan, srcID, numChannels)
+				MIDIControlNote(msgNum, chan, srcID, numChannels)
 			}
 		}.flatten
 	}
@@ -342,37 +289,8 @@ MIDINoteMatrix : MIDINoteGroup {
 			}
 		}
 	}
-	/*persist_{ |bool|
-		numRows.do{|x|
-			controls[x * numRows].do{|control, y|
-				var i = x * numRows + y;
-				control.persist_(bool)
-			}
-		}
-	}
-
-	on_ {|func|
-		numRows.do{|x|
-			controls[x * numRows].do{|control, y|
-				var i = x * numRows + y;
-				control
-					.args_(x, y, i)
-					.on_(func)
-			}
-		}
-	}
-
-	off_ {|func|
-		numRows.do{|x|
-			controls[x * numRows].do{|control, y|
-				var i = x * numRows + y;
-				control
-					.args_(x, y, i)
-					.off_(func)
-			}
-		}
-	}*/
-	/* trial 2d acces */
+	
+	/* ACCESS */
 	row {|i|
 		^MIDIControlArray.newFrom(this.controls.reshape(numRows, numCols)[i])
 	}
@@ -425,7 +343,7 @@ MIDIController {
 	}
 
 	addControlNote{|key, msgNum, numChannels = 1|
-		var control = MIDIControlNote (\note, msgNum, this.chan, this.srcID, numChannels);
+		var control = MIDIControlNote (msgNum, this.chan, this.srcID, numChannels);
 		controls.put(key, control)
 	}
 
@@ -435,12 +353,12 @@ MIDIController {
 	}
 
 	addNoteGroup {|key, msgNums, numChannels = 1|
-		var group = MIDINoteGroup(\note, msgNums, this.chan, this.srcID, numChannels);
+		var group = MIDINoteGroup(msgNums, this.chan, this.srcID, numChannels);
 		controls.put(key, group)
 	}
 
 	addNoteMatrix {|key, msgNums2D, numChannels = 1|
-		var group = MIDINoteMatrix(\note, msgNums2D, this.chan, this.srcID, numChannels);
+		var group = MIDINoteMatrix(msgNums2D, this.chan, this.srcID, numChannels);
 		controls.put(key, group)
 	}
 	/* ACCESSING */

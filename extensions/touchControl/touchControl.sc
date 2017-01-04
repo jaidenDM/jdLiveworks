@@ -18,8 +18,6 @@
 ------------------------------------------------------------------------- */
 AbstractOSCTouchControl : AbstractControl {
 	var  <>viewName, <>name, <>recvAddr, <>oscfunc, <>sender, <>label, <>respondFunc, <>idArgs;
-	// <>server, <>controlProxy,
-	// <>serverTreeFunc;
 
 	/* TalkBack Messages */
 	send {|val|
@@ -29,22 +27,6 @@ AbstractOSCTouchControl : AbstractControl {
 	sendLabelMsg {|msg|
 		sender !? { sender.sendMsg(recvAddr ++ '/label', msg ? '') } 
 	}
-
-	/* persist */
-
-	// persist_ {|bool|
-	// 	if (bool)
-	// 	{ this.addToTree }
-	// 	{ this.removeFromTree}
-	// }
-
-	// addToTree {
-	// 	serverTreeFunc = ServerTreeFunc.put({ this.onReceive });
-	// }
-
-	// removeFromTree {
-	// 	serverTreeFunc.remove
-	// }
 
 	/* CLEAN UP */
 	zero { sender.sendMsg(recvAddr, 0 )}
@@ -68,34 +50,21 @@ OSCTouchControl : AbstractOSCTouchControl {
 	}
 
 	init {|viewName, name, sender, numChannels ... idArgs|
-		super.init;
 		this.viewName = viewName; 
 		this.name = name; 
 		this.sender = sender;
 		this.numChannels = numChannels;
 		this.idArgs = idArgs.flatten;
 		this.recvAddr = viewName.asSymbol ++ name.asSymbol;	
-		/* support more channels for xy */
-		// this.controlProxy = this.controlProxy ? NodeProxy.control(this.server ? Server.default, 1);
-		// this.resetProxySource;
-		// this.persist_(true);
-	}
 
+		super.init;
+	}
 	/* Control Function */
 	onReceive {
-
-		// this.controlProxy !? { 
-		// 	this.controlProxy.clear;
-		// };
-		// if (this.controlProxy.isNeutral)
-		// 	{ this.controlProxy.source_({|val = 0| val.lag(\lag.kr(0.05)) }) };
 		this.resetProxySource;
-
 		oscfunc !? { oscfunc.free;};
 		oscfunc = OSCFunc({|v,n,c,s|
-			
 			this.setControlProxy(v[1 .. this.numChannels]);
-
 			respondFunc.value(*((v[1 .. this.numChannels]++[idArgs, n].flatten ).flatten) );
 		}, recvAddr);
 	}
@@ -147,45 +116,44 @@ OSCPushControl : OSCTrigControl {
 
 AbstractOSCMultiTouchOSC : AbstractControl {
 
-	//var <>viewName, <>name, <>sender;
 	var <>controls, <>numControls;
 
 	doAll { this.subClassResponsibility(thisMethod)  }
 
-	persist_ {|arglist|
-		this.doAll({|control| control.persist_(*arglist)})
+	persist_ {|func|
+		this.doAll({|control ... arglist| control.persist_(func, *arglist)})
 	}
 
-	send_ {| ... arglist|
-		this.doAll({|control| control.send_(*arglist)})
+	send_ {|func|
+		this.doAll({|control ... arglist| control.send_(func, *arglist)})
 	}
 
-	cc_ {| ... arglist|
-		this.doAll({|control| control.cc_(*arglist)})
+	cc_ {|func|
+		this.doAll({|control ... arglist| control.cc_(func, *arglist)})
 	}
 
-	tr_ {| ... arglist|
-		this.controls{|control| control.tr_(*arglist) }
+	tr_ {|func|
+		this.controls{|control ... arglist| control.tr_(func, *arglist) }
 	}
 
-	on_ {| ... arglist|
-		this.doAll({|control| control.on_(*arglist)})
+	on_ {|func|
+		this.doAll({|control ... arglist| control.on_(func, *arglist)})
 	}
 
-	off_ {| ... arglist|
-		this.doAll({|control| control.off_(*arglist)})
+	off_ {|func|
+		this.doAll({|control ... arglist| control.off_(func, *arglist)})
 	}
 
 	zero {
 		this.send(0)
 	}
 
-	free {| ... arglist|
-		this.doAll({|control| control.free_(*arglist)})
+	free {|func|
+		this.doAll({|control ... arglist| control.free_(func, *arglist)})
 	}
 
-	clearLabels_ {| ... arglist|
-		this.doAll({|control| control.clearLabel_(*arglist)})
+	clearLabels_ {|func|
+		this.doAll({|control ... arglist| control.clearLabel_(func, *arglist)})
 	}
 
 	clear {
@@ -201,29 +169,19 @@ OSCMultiTouchControl : AbstractOSCMultiTouchOSC {
 		^super.new.init(viewName, name, numControls, sender, numChannels);
 	}
 
-	// *newFromArray { }
-
 	init {|viewName, name, numControls, sender, numChannels|
-		super.init;//Calls persist
-		// this.viewName = viewName; 
-		// this.name = name;
 		this.numControls = numControls;
-		// this.numChannels = numChannels;
-		// this.sender = sender;
-		// this.onReceive;
 		this.controls = (1..numControls ).collect{|id|
 			var numberedName = name ++ '/' ++ (id).asSymbol;
 			OSCTouchControl(viewName, numberedName, sender, numChannels, id - 1);
-		}
+		};
+
+		super.init;
 	}
 
-	// onReceive {
-		
-	// }
-
 	doAll {|func|
-		this.controls.do{| ... controlAndArgs|
-			func.value(*controlAndArgs)
+		this.controls.do{|control ... arglist|
+			func.value(control, *arglist)
 		}
 	}
 
@@ -253,7 +211,6 @@ OSCMatrixTouchControl : AbstractOSCMultiTouchOSC {
 	}
 
 	init {|viewName, name, rows, columns, sender|
-		super.init;
 		this.rows = rows;
 		this.columns = columns;
 		this.controls = ( 1 .. rows ).collect{|row|
@@ -262,14 +219,7 @@ OSCMatrixTouchControl : AbstractOSCMultiTouchOSC {
 				OSCPushControl(viewName, numberedName, sender, 1, row-1, column-1, (row-1) * rows + (column-1));
 			}
 		};
-
-		// this.viewName = viewName; 
-		// this.name = name;
-		// this.rows = rows;
-		// this.columns = columns;
-		// this.sender = sender;
-
-		// this.persist_(true);
+		super.init;
 	}
 
 	/*onReceive {
@@ -333,7 +283,7 @@ OSCControlView {
 	}
 
 	addMultiPushControl {|name, rows, columns|
-		var control = OSCMatrixTouchControl.newConsecutive(this.name, ('/' ++ name), rows, columns, sender);
+		var control = OSCMatrixTouchControl(this.name, ('/' ++ name), rows, columns, sender);
 		this.controls.put(name, control);
 	}
 
@@ -355,7 +305,7 @@ OSCControlView {
 	}
 
 	addMultiFaderControl {|name, numControls|
-		var control = OSCMultiTouchControl.newConsecutive(this.name, ('/' ++ name), numControls, sender);
+		var control = OSCMultiTouchControl(this.name, ('/' ++ name), numControls, sender);
 		this.controls.put(name, control);
 	}
 
@@ -365,8 +315,8 @@ OSCControlView {
 	}
 
 	/* ACCESS */
-	at {|idx|
-		^controls.at(idx)
+	at {|idx,x,y|
+		^controls.at(idx);//.at(x,y)
 	} 
 	/* CLEAN UP */
 	clear {
