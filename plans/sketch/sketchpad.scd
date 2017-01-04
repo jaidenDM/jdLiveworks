@@ -282,26 +282,21 @@ a[\mpush][0,1].on_{ r.endRecording;'done'.postln };
 
 r = ControlDataRecorder();
 
-[{r.set(\freq,400.rand.postln);r.addEntry;},{r.addEntryToNewStore }].choose.value
+[{r.addEntry;},{r.addEntryToNewStore }].choose.value
 r.endRecording;
 
-r.data
-f = RecursiveArray.collect(r.data,
-	arrayFunc:{|arr|
-		// Pseq(arr)
-		arr
-		},
-	elementFunc:
-	{|el| 
-		var ret=0;
-		el.keysValuesDo{|key, val| 
-			if (key == \dur) { ret = val } 
-		};
-		ret;
-	}
-)
+r.atKey(\dur).collectArray(elementFunc:{|el| el.postln })
 
-f
+RecursiveArray.newFromArray(r.data).collectArray(elementFunc:{|el|
+			var ret;
+			el.keysValuesDo{|key, value|
+				if (key == \dur) { ret = value };
+				ret;
+			};
+			ret;
+		}).asArray
+
+
 
 r.data
 r.times
@@ -371,8 +366,128 @@ terracedFind  = {|aKey|
 	}
 
 
+a = ArrayedCollection.new(3)
 
-Function
+w = [0,1,[2,3,[4,5]],[7,8]]; a = RecursiveArray.newFromArray(w).collectArray
+w = [0,1,[2,3,[4,5,[9,10]]],[7,8]]; a = RecursiveArray.newFromArray(w).collect
+a.collect
+SequenceableCollection
+a.recursiveFlatten
+
+a.doArray
+
+b = a|.collect
+a.depth
+a.collectArray
+
+b.asArray
+
+a.isKindOf(SequenceableCollection)
+
+List
+
+
+
+
+~arr = [1,2,[3,4,[7,8]],5];
+~inds = [2,2];
+~i = 0;
+
+d = d[inds[i]]; [3,4,[7,8]];
+i = i + 1; 1;
+
+if (i >= inds.size)
+{  }
+{ feedback }
+
+d = d[inds[i]]; [7,8];
+i = i + 1; 2;
+
+if (i >= inds.size)
+{ return array }
+{ feedback }
+
+(
+c = List.new.add(7).add(8);
+b = List.new;b.add(3).add(4).add(c);
+a = List.new;a.add(1);a.add(2).add(b).add(5);
+)
+
+(
+c = List.new.add(7).add(8);
+b = List.new;b.add(3).add(4).add(c);
+a = List.new;a.add(1);a.add(2).add(b).add(5);
+// ~arr = [1,2,[3,4,[7,8]],5];
+~inds = [2,2];
+// ~i = 0;
+
+~deepAt = {|arr, inds, i|
+		var ret;
+		if (i.isNil) {
+			i = 0;
+		} {
+			i = i + 1;
+		};
+
+		if ( i == inds.size ) {
+			// arr.postln;
+			ret = arr[inds[i-1]];
+		} {
+			i.postln;
+			arr = arr[inds[i]];
+			ret = ~deepAt.value(arr,inds, i)
+		};
+		ret;
+	}
+
+// r = ControlDataRecorder();
+// a = r.prDeepAt(~arr,~inds)
+)
+
+d = ~deepAt.(a,~inds)
+d
+d = d.add(4)
+a
+d
+
+~arr
+
+a
+
+~deepAt.value(~arr, ~inds, ~i);
+
+d.removeAt( d.size - 1 )
+a. 
+a = List.new
+
+r = ControlDataRecorder();
+r.addEntry;
+
+r.storeSubEntry
+q = r.prDeepAt(r.runningData, r.returnIndexes)
+q.add(1)
+r.storeEntry
+
+a = 
+r.runningData
+a[1][0].add(0)
+
+a = a.add(0)
+r.returnIndexes
+.removeAt(0)
+r.storedData
+
+
+b = [0]
+
+
+
+
+
+
+
+
+
 
 
 
