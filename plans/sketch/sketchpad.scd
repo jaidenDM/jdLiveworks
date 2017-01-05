@@ -484,8 +484,24 @@ b = [0]
 
 
 
+~arr = [1,2,[3,4,[7,8,[9,10]]],5];
 
 
+
+~arr.collect{|item|
+	if (item.isArray) {
+		item.collect{|sub|
+			if (sub.isArray) { 
+				sub.flat.sum
+			} {
+				sub
+			}
+		}
+			
+	} {
+		item
+	}
+}
 
 
 

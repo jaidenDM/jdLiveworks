@@ -20,7 +20,7 @@
 
 ControlDataRecorder {
 
-	var <>clock, <>lastEntryTime, <>runningData, <>returnIndexes, <>currentLevel, <>storedData, <>currentData, <>isRecording;
+	var <>clock, <>lastEntryTime, <>runningData, <>returnIndexes, <>storedData, <>currentData, <>isRecording;
 	*new {|aClock|
 		^super.new.init(aClock);
 	}
@@ -32,15 +32,11 @@ ControlDataRecorder {
 		this.isRecording = false;
 	}
 
-	timeSinceLastEntry {
-		^ ( this.clock.beats - this.lastEntryTime )
-	}
+	timeSinceLastEntry { ^( this.clock.beats - this.lastEntryTime ) }
 
-	resetLastEntryTime {
-		this.lastEntryTime = this.clock.beats;
-	}
+	resetLastEntryTime { this.lastEntryTime = this.clock.beats }
 
-	startRecording {
+	startCapture {
 		this.resetLastEntryTime;
 		this.runningData = List.new;
 		this.returnIndexes  = List.new;
@@ -48,15 +44,11 @@ ControlDataRecorder {
 	}
 
 	storeEntry {
-		// this.set(\dur, this.timeSinceLastEntry );
 
-		// if (this.returnIndexes.size == 0) {
-		// 	this.runningData = this.runningData.add(currentData.copy);
-		// } {
-		var arr = this.prDeepAt(this.runningData, this.returnIndexes);
+		var activeList = this.prDeepAt(this.runningData, this.returnIndexes);
 		this.set(\dur, this.timeSinceLastEntry );
-		arr.add(currentData.copy);
-		// };
+		activeList.add(currentData.copy);
+
 		this.resetLastEntryTime;
 	}
 
@@ -64,68 +56,58 @@ ControlDataRecorder {
 
 		if (this.isRecording.not)
 		{ 
-			this.startRecording;
+			this.startCapture;
 		} {
 			this.storeEntry;
 		}
 	}
 
 	addEntryToNewStore {
-		this.stopRecording;
+		this.endEntry;
 		this.addEntry;
 	}
-	/* move this into List class and call as instance method in store */
-	prDeepAt {|arr, inds, i|
-		var ret;
-		if (i.isNil) {
-			i = 0;
-		} {
-			i = i + 1;
-		};
 
-		if ( i == inds.size ) {
-			^ret = arr;
-		} {
-			ret = arr[inds[i]];
-			ret = this.prDeepAt(ret,inds, i)
-		};
-		^ret;
+	addEntryToNewSubStore {
+		this.endSubEntry;
+		this.addEntry;
 	}
-
-	storeSubEntry {   
+	
+	addSubEntry {   
 		
-		// if (this.returnIndexes.size == 0) {
-		// 	var arr = this.prDeepAt(this.runningData, this.returnIndexes);
-		// 	arr = arr.add(List.new);
-		// 	this.returnIndexes  =  this.returnIndexes.add(this.runningData.size.postln - 1);
-		// } {
-		var arr = this.prDeepAt(this.runningData, this.returnIndexes);
-		arr = arr.add(List.new);
-		this.returnIndexes  =  this.returnIndexes.add(arr.size - 1);
-		// };
+		var activeList = this.prDeepAt(this.runningData, this.returnIndexes);
+		activeList = activeList.add(List.new);
+		this.returnIndexes = this.returnIndexes.add(activeList.size - 1);
 
-		this.storeEntry;
-	}
-
-	addLowerEntry { 
-		/* store index to return later */
+		this.addEntry;
 	}
 
 	addUpperEntry {
-		this.removeLatestIndex
+		this.removeLatestIndex;
+		this.addEntry;
 	}
 
-	removeLatestIndex {  
-		this.returnIndexes.removeAt(this.returnIndexes.size - 1);
+	addTopEntry {
+		this.jumpToTop;
+		this.addEntry;
 	}
 
-	stopRecording {
+	jumpLevel { if (this.returnIndexes > 0) { this.returnIndexes.removeAt(this.returnIndexes.size - 1) } }
+
+	jumpToTop { this.returnIndexes.clear }
+
+	breakCapture {|func|
 		if (this.isRecording) {
-			this.addEntry;
+			func.value;
 			isRecording = false;
 			this.storedData = storedData.add(runningData.copy);
 		}
 	}
+
+	endEntry { this.breakCapture{ this.addEntry } }
+
+	endSubEntry { this.breakCapture{ this.addEntry } }
+
+	endCapture { this.breakCapture{ this.jumpToTop; this.addEntry } }
 
 	set {| ... currentDataPairs|
 		// runningData
@@ -146,19 +128,40 @@ ControlDataRecorder {
 		})
 	}
 
+	/* return elements and summed arrays */
+	atLevel {|level|
+		
+	}
+
 	asPseq {|key| }
 
 	asDseq {|key| }
+
+	/*PRIVATE*/
+	/* move this into List class and call as instance method in store */
+	prDeepAt {|arr, inds, i|
+		var ret;
+		if (i.isNil) {
+			i = 0;
+		} {
+			i = i + 1;
+		};
+
+		if ( i == inds.size ) {
+			^ret = arr;
+		} {
+			ret = arr[inds[i]];
+			ret = this.prDeepAt(ret,inds, i)
+		};
+		^ret;
+	}
+
 }
-
-
-
 
 /* ========================================================================
 ========================================================================= */
 
-
-
+/* NEEDS REFINING */
 RecursiveArray : List {
 	var <>depth;
 	var <>parent;
