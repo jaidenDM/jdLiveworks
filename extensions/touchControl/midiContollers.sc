@@ -213,7 +213,7 @@ AbstractMIDIControlGroup : AbstractControl {
 	}
 
 	free {|func|
-		this.doAll({|control ... arglist| control.free_(func, *arglist)})
+		this.doAll({|control ... arglist| control.free(func, *arglist)})
 	}
 
 	clear {
@@ -281,7 +281,7 @@ MIDINoteMatrix : MIDINoteGroup {
 		}.flatten
 	}
 
-	doAll {|key, func|
+	doAll {|func|
 		numRows.do{|x|
 			this.numCols.do{|y|
 				var i = x * numRows + y;

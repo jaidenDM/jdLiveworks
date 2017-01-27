@@ -18,7 +18,7 @@
 }
 */
 
-ControlDataRecorder {
+CompartmentalDataRecorder {
 
 	var <>clock, <>lastEntryTime, <>runningData, <>returnIndexes, <>storedData, <>currentData, <>isRecording;
 	*new {|aClock|
@@ -36,6 +36,8 @@ ControlDataRecorder {
 
 	resetLastEntryTime { this.lastEntryTime = this.clock.beats }
 
+	prepareNewStore { }
+
 	startCapture {
 		this.resetLastEntryTime;
 		this.runningData = List.new;
@@ -43,11 +45,12 @@ ControlDataRecorder {
 		isRecording = true;
 	}
 
-	storeEntry {
+	prStoreEntry {
 
 		var activeList = this.prDeepAt(this.runningData, this.returnIndexes);
-		this.set(\dur, this.timeSinceLastEntry );
-		activeList.add(currentData.copy);
+		this.timeSinceLastEntry.postln;
+		this.set(\dur, this.timeSinceLastEntry.round(0.125).postln; );
+		activeList.add(this.timeSinceLastEntry.round(0.125));
 
 		this.resetLastEntryTime;
 	}
@@ -58,7 +61,7 @@ ControlDataRecorder {
 		{ 
 			this.startCapture;
 		} {
-			this.storeEntry;
+			this.prStoreEntry;
 		}
 	}
 
@@ -154,12 +157,59 @@ ControlDataRecorder {
 			ret = this.prDeepAt(ret,inds, i)
 		};
 		^ret;
+	}	
+
+	/* CleanUp */
+
+	clear {
+
 	}
 
 }
 
 /* ========================================================================
 ========================================================================= */
+
+/*
+	Recorder
+
+	Approaches:
+		Record one file and use time data
+			- data more volatile
+			- could write it to text file (py)
+
+		Record into multiple smaller files
+
+		Write to disk or just keep in buffers for session?
+
+		could use the control recorder but with functions as arguments to execute
+*/
+
+
+// CompartmentAudioRecorder {
+// 	/*
+// 		similar to control data recorder but records into audio buffers 
+// 	*/
+// 	classvar <>recorder, buffer, defname;
+	
+// 	*initClass {
+// 		recorder 
+// 		defname = this.class.asString++"DiskOut";
+		
+// 		SynthDef(defname.asSymbol, {
+// 			DiskOut.ar();
+// 			})
+// 	}
+
+// 	*new {
+
+// 	}
+
+// 	init {
+
+// 	}
+// }
+
 
 /* NEEDS REFINING */
 RecursiveArray : List {
