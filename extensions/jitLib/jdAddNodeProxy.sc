@@ -8,7 +8,7 @@ NGroup {
 	
 	init {|aKeys|
 		this.defs = ();
-		this.add(aKeys);
+		this.add(*aKeys);
 	}
 
 	defNames {
@@ -17,13 +17,13 @@ NGroup {
 
 
 	// Management
-	add {|aDefNames|
+	add {| ... aDefNames|
 		aDefNames.do{|key|
 			this.defs[key] = Ndef(key);
 		};
 	}
 
-	remove {|aDefNames|
+	remove {| ... aDefNames|
 		aDefNames.do{|key|
 			this.defs.removeAt(key);
 		};
@@ -37,14 +37,8 @@ NGroup {
 	
 	//Access
 
-	at {| aDefNames|
-		var list = List.new;
-		aDefNames.do {|aKey|
-			if (this.defNames[aKey.asSymbol].notNil)
-			{
-				list.add(defs[aKey])
-			}
-		}
+	at {| aDefName|
+		^defs.at(aDefName.asSymbol);
 	}
 
 	do {|func|
@@ -138,16 +132,16 @@ NdefG : NGroup {
 
 		if (result.isNil)
 		{
-			result = super.new.init(groupKey, aKeys.postln);
+			result = super.new.init(groupKey, *aKeys.postln);
 			all[groupKey] = result;
 		} 
 
 		^this.all[groupKey]
 	}
 
-	init {|groupKey, aKeys|
-		super.init(aKeys);
-		// this.key = groupKey;
+	init {|groupKey ... aKeys|
+		super.init(*aKeys);
+		this.key = groupKey;
 	}
 
 }
@@ -158,7 +152,7 @@ NdefG : NGroup {
 
 NDict : NGroup {
 
-	add {| aKeyDefnamePairs|
+	add {| ... aKeyDefnamePairs|
 		if (aKeyDefnamePairs.size.even)
 		{
 			aKeyDefnamePairs.pairsDo {|key, def|
@@ -167,6 +161,14 @@ NDict : NGroup {
 		} {
 			Error("Array Not Even").throw;
 		}
+	}
+
+	printOn {|stream|
+		var string = "";
+		this.defs.pairsDo {|key, def|
+			string = string + ("\n\t \\" ++ key.asString ++ " : Ndef('" ++ def.key.asString ++ "')") 
+		};
+		stream << this.class.asString << ":" << string 
 	}
 
 }

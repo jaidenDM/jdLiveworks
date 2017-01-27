@@ -26,22 +26,37 @@ NLog {
 	init { |aKey|
 		this.key = aKey;
 		/* should they be ordered?? */
-		ins = NGroup.new;
-		outs = NGroup.new;
+		ins = NDict.new;
+		outs = NDict.new;
 	}
 
-	addIns {| ... aKeys|
-		ins.add(*aKeys);
+	addIns {| ... aKeyDefNamePairs|
+		ins.add(*aKeyDefNamePairs);
 	}
+
 	removeIns {| ... aKeys|
+		aKeys.do{|aKey|
+			if (ins[aKey].notNil)
+			{
+				var in = ins[aKey];
+				in.outs.remove(aKey)
+			}
+		};
 		ins.remove(*aKeys);
 	}
 
-	addOuts {| ... aKeys|
-		outs.add(*aKeys);
+	addOuts {| ... aKeyDefNamePairs|
+		outs.add(*aKeyDefNamePairs);
 	}
 
 	removeOuts {| ... aKeys|
+		aKeys.do{|aKey|
+			if (outs[aKey].notNil)
+			{
+				var out = outs[aKey];
+				out.ins.remove(aKey)
+			}
+		};
 		outs.remove(*aKeys);
 	}
 
@@ -69,10 +84,22 @@ NLog {
 		^NLog(this.key)
 	}
 	ins { ^this.log.ins }
-	outs { ^this.log.ins }
+	outs { ^this.log.outs }
 
-	removeOuts {
-		
+	removeOuts {| ... aKeys|
+		this.log.removeOuts(*aKeys);
+	}
+	
+	removeAllOuts {| ... aKeys|
+		this.log.removeAllOuts;
+	}
+	
+	removeIns{| ... aKeys|
+		this.log.removeIns(*aKeys);
+	}
+
+	removeAllIns{| ... aKeys|
+		this.log.removeAllIns;
 	}
 
 	<<> {|proxy, key = \in|
@@ -96,8 +123,8 @@ NLog {
 		};
 
 		/* log In and Out */
-		this.log.addIns( proxy.key );
-		proxy.log.addOuts( this.key );
+		this.log.addIns( key, proxy.key );
+		proxy.log.addOuts( key, this.key );
 
 		^proxy // returns first argument for further chaining
 

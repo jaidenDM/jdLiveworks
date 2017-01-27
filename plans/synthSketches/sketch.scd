@@ -158,12 +158,13 @@ Ndef(\b, { LFTri.ar(80)!2 });
 
 Ndef(\c, { (\a.ar(0!2) +\b.ar(0!2))  * SinOsc.kr(2).range(0,1)});
 
-Ndef(\c).play <<.a Ndef(\a) <<.b Ndef(\b);
+Ndef(\c).play <<.a Ndef(\a) 
 
-Ndef(\c).log.ins.defs;
-Ndef(\a).log.outs;
-Ndef(\c).log.ins.keys
-NdefG(\g, \a);
+Ndef(\c).log.removeIns(\a);
+
+Ndef(\a).outs
+
+Ndef(\c).ins[\a]
 
 NdefG(\g).play
 
@@ -178,15 +179,6 @@ NLog(\a)
 match
 
 a = NDict(\a,\r,\b,\p)
-
-
-a.remove(\a)
-
-
-
-
-a = (\a:  1)
-
 
 
 
