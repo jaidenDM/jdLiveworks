@@ -9,6 +9,50 @@ NLog {
 
 	*initClass { all = () }
 
+	*allRoutes {|server|
+		var string = "";
+
+		Ndef.all[ server ? Server.default.asSymbol ].envir.pairsDo{|defkey, def|
+
+			string = string + ("\n" ++ def.cs++":");
+			
+			if (def.ins.size > 0)
+			{
+				string = string ++ "\n\tIns:";
+				def.ins.do{|key, inDef|
+					string = string + "\n\t\t" 
+						++ (def.cs 
+							++ " << \\" 
+							++ key.asString 
+							++ "."
+							++ (inDef.rate==\audio).if(\ar,\kr).asString 
+							++ " << " 
+							++ inDef.cs
+						);
+				};
+			};
+
+			if (def.outs.size > 0)
+			{
+				string = string ++ "\n\tOuts:";
+					def.outs.do{|key, outDef|
+					string = string 
+						++ "\n\t\t" 
+						++ (def.cs 
+							++ " >> \\" 
+							++ key.asString
+							++ "."++ (inDef.rate==\audio).if(\ar,\kr).asString
+							++ " >> "
+							++ outDef.cs
+						);
+				};
+			}
+		};
+
+		string.postln;
+
+	}
+
 	*new {|aKey|
 		var nLog, key;
 		key = aKey.asSymbol;
@@ -19,17 +63,18 @@ NLog {
 			nLog = super.new.init(key);
 			all[key] = nLog;
 		}
-
 		^all[key]
 	}
 
 	init { |aKey|
 		this.key = aKey;
-		/* should they be ordered?? */
+		/* should they be ordered collections?? */
+		//Routing
 		ins = NDict.new;
 		outs = NDict.new;
 	}
 
+	// Routing
 	addIns {| ... aKeyDefNamePairs|
 		ins.add(*aKeyDefNamePairs);
 	}
@@ -75,11 +120,8 @@ NLog {
 }
 
 
-
 +  Ndef {
-
-	// Node Management
-
+	// Routing Management
 	log {
 		^NLog(this.key)
 	}

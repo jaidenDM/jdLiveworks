@@ -151,36 +151,48 @@ Ndef(\lead) <<.freq Ndef(\rnd, {
 })
 
 
-Ndef.clear
 
 Ndef(\a, { SinOsc.ar(100)!2*0.1 });
 Ndef(\b, { LFTri.ar(80)!2 });
 
-Ndef(\c, { (\a.ar(0!2) +\b.ar(0!2))  * SinOsc.kr(2).range(0,1)});
+Ndef(\c, { (\a.ar(0!2) + \b.ar(0!2))  * SinOsc.kr(2).range(0,1)});
 
 Ndef(\c).play <<.a Ndef(\a) 
 
+NLog.allRoutes
+
 Ndef(\c).log.removeIns(\a);
 
-Ndef(\a).outs
+Ndef(\a).outs.do{|key, def|
+	def.postln;
+}
 
-Ndef(\c).ins[\a]
-
-NdefG(\g).play
-
-a = NGroup(\a);
-
-a.play
+a = Ndef(\a).cs
 
 
-NLog(\a)
-
-
-match
-
-a = NDict(\a,\r,\b,\p)
+Server.default.asSymbol.isSymbol
 
 
 
 
-s.plotTree
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

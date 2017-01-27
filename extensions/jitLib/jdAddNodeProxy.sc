@@ -15,6 +15,7 @@ NGroup {
 		^this.defs.asArray.collect{ |def| def.key }
 	}
 
+	size { ^defs.size }
 
 	// Management
 	add {| ... aDefNames|
@@ -49,52 +50,52 @@ NGroup {
 
 	//Source Setting
 	clear {| ... arglist|
-		this.defs.do{|def|
+		this.do{|def|
 			def.clear(*arglist)
 		}
 	}
 
 	fadeTime_ {| ... arglist|
-		this.defs.do{|def|
+		this.do{|def|
 			def.fadeTime_(*arglist)
 		}
 	}
 
 	//Initialisation
 	ar {| ... arglist|
-		this.defs.do{|def|
+		this.do{|def|
 			def.ar(*arglist)
 		}
 	}
 
 	kr {| ... arglist|
-		this.defs.do{|def|
+		this.do{|def|
 			def.kr(*arglist)
 		}
 	}
 
 	// Play Controls
 	play {| ... arglist|
-		this.defs.do{|def|
+		this.do{|def|
 			def.play(*arglist)
 		}
 	}
 
 	stop {| ... arglist|
-		this.defs.do{|def|
+		this.do{|def|
 			def.stop(*arglist)
 		}
 	}
 
 	//Timing
 	clock {| ... arglist|
-		this.defs.do{|def|
+		this.do{|def|
 			def.clock(*arglist)
 		}
 	}
 
 	quant {| ... arglist|
-		this.defs.do{|def|
+		this.do{|def|
 			def.quant(*arglist)
 		}
 	}
@@ -169,6 +170,13 @@ NDict : NGroup {
 			string = string + ("\n\t \\" ++ key.asString ++ " : Ndef('" ++ def.key.asString ++ "')") 
 		};
 		stream << this.class.asString << ":" << string 
+	}
+
+	//Access
+	do {|func|
+		defs.pairsDo{|key, def|
+			func.value(key, def);
+		}
 	}
 
 }
