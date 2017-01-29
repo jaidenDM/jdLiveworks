@@ -1,4 +1,7 @@
 /* Group manipulation of Ndefs */
+AbstractNdefCollection {
+
+}
 NGroup {
 	var <>defs;
 
@@ -37,7 +40,6 @@ NGroup {
 	}
 	
 	//Access
-
 	at {| aDefName|
 		^defs.at(aDefName.asSymbol);
 	}
@@ -160,7 +162,7 @@ NDict : NGroup {
 				this.defs[key.asSymbol] = Ndef(def.asSymbol);
 			}
 		} {
-			Error("Array Not Even").throw;
+			^Error("Array Not Even").throw;
 		}
 	}
 
@@ -180,3 +182,91 @@ NDict : NGroup {
 	}
 
 }
+
+/* ------------------------------------------------------------------------
+------------------------------------------------------------------------- */
+/* Probably should inherit from node proxy */
+
+NdefGroupMixer {
+	var <>proxy, <>dest, <>vols;
+
+	*new {|aDestNodeProxy|
+		^super.new.init(aDestNodeProxy)
+	}
+
+	init {|aDestNodeProxy|
+		this.dest = Ndef(aDestNodeProxy);
+		this.proxy = NodeProxy.perform(
+			this.dest.rate, 
+			Server.default,
+			numChannels: this.dest.numChannels.postln);
+				// .bus_(this.dest.bus);
+
+		this.vols = ();
+	}
+
+	put {| ... aKeyDefPairs|
+
+		aKeyDefPairs.pairsDo{|key, def|
+			var vol;
+			vol = vols.at(key);
+			if (vol.isNil)
+			{
+				vols[key] = NodeProxy.control.source_(1);
+			};
+			proxy.put(
+				key, 
+				{ def.ar * vols[key].kr }
+			)
+		}
+	}
+
+	remove {|aKeys, aFadeTime|
+		aKeys.do{|aKey|
+			proxy.at(aKey).clear(aFadeTime)
+		}
+	}
+
+	// Setting
+	vol {|aKey, aVal|
+		vols[aKey].source_(aVal)
+	}
+
+	// Access
+	at {|aKey|
+		^proxy[aKey]
+	}
+
+	// Cleanup
+
+	removeAt {|aKey|
+		/* fadeTime ?  */
+		proxy.at(aKey).clear;
+		vols.removeAt(aKey).clear;	
+	}
+
+	free {
+		vols.clear;
+		proxy.clear;
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

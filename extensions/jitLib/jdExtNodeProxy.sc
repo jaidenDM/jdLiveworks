@@ -2,13 +2,15 @@
 
 	/* Routing */
 	<< { | proxy, key = \in |
-		proxy.perform('<>>', this, key);
+		if (proxy.isNil) { ^this.unmap(key)};
+		this.perform('<<>', proxy, key);
 		^this
 	}
 
 	>> { | proxy, key = \in |
-		proxy.perform('<<>', this, key);
-		^this
+		if (proxy.isNil) { ^this.unmap(key) };
+		proxy.perform('<<', this, key);
+		^thisßß
 	}
 
 	/* MultiIn Proxies */

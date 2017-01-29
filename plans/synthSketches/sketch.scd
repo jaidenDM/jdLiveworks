@@ -152,39 +152,53 @@ Ndef(\lead) <<.freq Ndef(\rnd, {
 
 
 
-Ndef(\a, { SinOsc.ar(100)!2*0.1 });
-Ndef(\b, { LFTri.ar(80)!2 });
-
-Ndef(\c, { (\a.ar(0!2) + \b.ar(0!2))  * SinOsc.kr(2).range(0,1)});
-
-Ndef(\c).play <<.a Ndef(\a) 
-
-NLog.allRoutes
-
-Ndef(\c).log.removeIns(\a);
-
-Ndef(\a).outs.do{|key, def|
-	def.postln;
-}
-
-a = Ndef(\a).cs
+Ndef(\a, {SinOsc.ar(100)!2 * 0.2  }).play;
+Ndef(\b, {LFTri.ar(80)!2 * 0.2  });
 
 
-Server.default.asSymbol.isSymbol
+Ndef(\a).numChannels;
+Ndef(\b).numChannels;
+Ndef(\x).numChannels;
+
+Ndef(\x, { \in.ar(0!2) })
+Ndef(\x).play;
+Ndef(\x) <<+ Ndef(\a) 
+Ndef(\x).mixer(\in)[\a];
 
 
+Ndef(\x).mixer [ \controlKey ] [ \proxyKey ]
+
+Ndef(\x).mixer(\a).proxy.objects
+
+Ndef(\x).manager.inputMixer.proxy.numChannels;
+
+Ndef(\b).bus
+
+s.plotTree
+
+Ndef(\a)[4]
+
+Ndef(\a).sources
+
+s.plotTree
 
 
+m = NdefMixGroup(\x);
+
+m.dest
 
 
+Ndef(\x) <<+ Ndef(\a)
 
+Ndef(\x).inputMixer.proxy.play
 
+a = NdefManager(\x)
 
+a.makeInputMixer
 
+a.inputMixer.mixer
 
-
-
-
+NodeProxy.perform('audio')
 
 
 
