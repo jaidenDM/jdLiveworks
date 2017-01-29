@@ -233,22 +233,7 @@ Ndef(\a).fadeTime_(1)
 Ndef(\a).play
 Ndef(\a)[1]
 
-(
-~func = Ndef(\a).at(1);
-~clock = Ndef(\a).clock ? TempoClock.default;
-~fadeTime = 4;
-~index = 1;
-	~rate = if (Ndef.rate == \audio) { \ar } { \kr };
-	Ndef(\a).put(~index, { 
-		var in = ~func.value;
-		in * Line.perform(~rate, 1.0, 0.0, ~fadeTime ? Ndef(\a).fadeTime ? 0.1);
-	});
 
-	~clock.sched(~fadeTime, {
-		Ndef(\a).put(~index, nil);
-		nil;
-	})
-)
 
 
 Ndef(\test, { SinOsc.ar * 0.1  }) ;
@@ -273,29 +258,30 @@ Ndef(\a).unmap(\vol)
 
 (
 Ndef(\a, { SinOsc.ar * 0.1 });
+Ndef.ar(\m);
 n = NdefChannel.newFromNdef(\m);
 n.put( \a, Ndef(\a) );
-n.play;
+n.play
 )
 
-
-n[\a].proxy.bus
-play
-
-n.stop
-
-
+n[\a].stop
 n[\a].play
+n[\a].set(\trigma, 1);
+n[\a].set(n[\a].controlId('trig'), 1);
+n[\a].controlId('trig') == \trigma
 
+Ndef(\m).set(\t_gatema, 1)
+Ndef(\m).stop
+n.objects[\a] n[\a].output
+Ndef(\m).objects
+n.play
+n.sources.cs
+n.set()
+n.controlNames
 
-n.sources[0].cs
-n
-
-
-
-
-
-
+Ndef(\a)[4] =  {SinOsc.ar * 0.1 * EnvGen.kr( Env.perc(0.01,1.0), \t_gate.kr(0))}
+Ndef(\a).play
+Ndef(\a).set(\t_gate,1)
 
 
 

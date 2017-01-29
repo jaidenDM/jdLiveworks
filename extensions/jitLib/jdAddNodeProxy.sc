@@ -220,58 +220,62 @@ NdefG : AbstractNamedNdefCollection {
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
 // : SynthDefControl
+/* very basic: should work at least as well as the proxy functions
+	goals: each slot can play fade/ 
+	- some way to use a nodeproxy on same bus? 
+		look into synth controls
+ */
+NodeProxyChannel {
+	var <>mixer, <>index, <>input, <>mVol, <>mLag, <>volControl, <>output, <>fadeTime;
+	var <>clock, <>quant;
 
-SynthChannelControl {
-	var <>mixer, <>index, <>input, <>mVol, <>mLag, <>volControl, <>output, <>fadeTime, <>channelOffset;
-	var <>proxy;
-	*new {|mixer, index, input, vol, lag|
-		^super.new.init(mixer, index, input, vol, lag);
+	*new {|aMixer, aIndex, aInput, aVol, aLag|
+		^super.new.init(aMixer, aIndex, aInput, aVol, aLag);
 	}
 
-	init {|mixer, index, input, vol, lag|
-		this.mixer = mixer;
-		this.index = index;
-		this.input = input;
-		this.lag = lag ? 0.05;
-		this.vol = vol ? 1.0;
+	init {|aMixer, aIndex, aInput, aVol, aLag|
+		this.mixer = aMixer;
+		this.index = aIndex;
+		this.input = aInput;
+		this.lag = aLag ? 0.05;
+		this.vol = aVol ? 1.0;
 		this.fadeTime = 0.05;
-		this.proxy = NodeProxy.for(mixer.bus);
-		// this.put(this.input);
-		this.makeOutput(this.input);
-		// this.source_(input);
-		this.channelOffset = 0;
+
+		this.clock = aMixer.clock;
+		this.quant = aMixer.quant;
+
+		this.makeOutput(aInput);
 	}
 
-	idSymbol { ^(mixer.key++index.asSymbol) }
-	controlId {|name | ^('\\'++this.idSymbol++'_'++name) }
-	
+	idSymbol { ^(this.mixer.dest.key++index.asSymbol).asSymbol }
+	controlId {|name | ^(name.asSymbol++this.idSymbol).asSymbol }
+	idNamedControl{ | name, val, lag| ^NamedControl.kr( this.controlId(name), val, lag) }
+
 	makeOutput {|input|
 		this.output = { 
-			input
-			* NamedControl.kr( this.controlId('vol'),
-				this.mVol,
-				NamedControl.kr(this.controlId('lag'), 
-					this.mLag
-					)
+			input.value
+			* 	this.idNamedControl(
+					'vol',
+					this.mVol,
+					this.idNamedControl('lag', this.mLag)
 				)
 			* EnvGen.kr( 
 				Env(
-					[1, 0],
-					[ NamedControl.kr(this.controlId('releaseTime'), mixer.fadeTime)],
-					[ NamedControl.kr(this.controlId('curve'), 1)]
+					[ this.idNamedControl('start', 1.0), this.idNamedControl('end', 0.0) ],
+					[ this.idNamedControl('releaseTime', mixer.fadeTime)],
+					[ this.idNamedControl('curve', 1)]
 				),
-				NamedControl.kr(this.controlId('gate'), 0),
-				doneAction: 2
+				this.idNamedControl('t_trig', 0)
+				// doneAction: 0
 			)  
 		};
-
-		this.proxy.put(this.index, this.output); 
 	}
 
 	// Setting/Getting
 	set {| ... argPairs|
 		argPairs.pairsDo {|key, val|
-			mixer.set(key, val);
+			this.mixer.postln;
+			this.mixer.set(key, val);
 		}
 	}
 
@@ -287,16 +291,6 @@ SynthChannelControl {
 		this.set(\lag, this.lag);
 	}
 	lag { ^mLag }
-
-
-	source_ {|aInput|
-		this.input = input;
-		this.makeOutput(this.input);
-	}
-
-	source {
-		^this.output
-	}
 
 	//Mapping
 	map {| ... argPairs|
@@ -315,25 +309,43 @@ SynthChannelControl {
 		this.mixer.controlNames.do{|controlName|
 			var name = controlName.name.asString;
 			if ( name.contains(this.idSymbol.asString) )
-			{ mixer.unmap(name.asSymbol) } //???
+			{ mixer.unmap(name.asSymbol) } //??? why no work
 		};
 	}
 	// Source Setting
 
-	// put {|input| 
-	// 	this.makeOutput(input);
-	// 	this.mixer.put(index, this.output) 
-	// }
-
 	remove { mixer.put(index, nil); }
 
+	play {|aQuant, aFadeTime, curve = 1|
+		this.clock.play({ 
+			this.set(
+				this.controlId('releaseTime'), aFadeTime ? this.fadeTime ? mixer.fadeTime,
+				this.controlId('start'), 0.0, 
+				this.controlId('end'), 1.0,
+				this.controlId('curve'), curve,
+				this.controlId('t_trig'), 1
+			);
+		}, aQuant ? this.quant)
+	}
+
+	stop {|aQuant, aFadeTime, curve = 1|
+		this.clock.play({ 
+			this.set(
+				this.controlId('releaseTime'), aFadeTime ? this.fadeTime ? mixer.fadeTime,
+				this.controlId('start'), 1.0, 
+				this.controlId('end'), 0.0,
+				this.controlId('curve'), curve,
+				this.controlId('t_trig'), 1
+			);
+		}, aQuant ? this.quant)
+	}
+
 	//ClearUp
-	clear {|aFadeTime, curve = 1|
+	clear {|aFadeTime, curve|
 		var func = mixer.at(index);
 		var clock = mixer.clock ? TempoClock.default;
 		aFadeTime ?? {this.fadeTime = aFadeTime};
-		this.set(\releaseTime, aFadeTime ? this.fadeTime ? mixer.fadeTime, this.controlId('curve'), curve, this.controlId('gate'), 1);
-
+		this.stop(aFadeTime, curve);
 		clock.sched(fadeTime, {
 			this.remove;
 			nil;
@@ -348,10 +360,6 @@ SynthChannelControl {
 NdefChannel : NodeProxy {
 	var <>chans, <>dest, <>rateSymbol;
 
-	*new {| ... arglist|
-		^super.new.init(*arglist);
-	}
-
 	*newFromNdef {|aKey|
 		var dest = Ndef(aKey);
 		var rate = dest.rate.isNeutral.if({\audio});
@@ -359,7 +367,8 @@ NdefChannel : NodeProxy {
 		
 		^this
 		.perform(rate, Server.default, numChannels)
-		.rateSymbol_( (rate == \audio).if({ \ar },{ \kr }));
+		.rateSymbol_( (rate == \audio).if({ \ar }, { \kr }))
+		.dest_(dest);
 	}
 
 	init {| ... arglist|
@@ -373,7 +382,7 @@ NdefChannel : NodeProxy {
 			if (chan.isNil) 
 			{ 
 				this.chans.put(key, 
-					SynthChannelControl(
+					NodeProxyChannel.new(
 						this,
 						key, 
 						{ def.perform( this.rateSymbol ) }
