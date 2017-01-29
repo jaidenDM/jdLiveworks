@@ -153,6 +153,8 @@ Ndef(\lead) <<.freq Ndef(\rnd, {
 
 
 Ndef(\a, {SinOsc.ar(100)!2 * 0.2  }).play;
+
+Ndef(\a)[2] = { LFTri.ar(80)!2 * 0.2  };
 Ndef(\b, {LFTri.ar(80)!2 * 0.2  });
 
 
@@ -172,11 +174,24 @@ Ndef(\x).mixer(\a).proxy.objects
 
 Ndef(\x).manager.inputMixer.proxy.numChannels;
 
+Ndef(\x).mixIn // returns mixer dictionary
+			[\in] // returns mixer
+				[\a] //returns channel
+					
 Ndef(\b).bus
 
 s.plotTree
+Ndef(\a).play;
 
-Ndef(\a)[4]
+Ndef(\a)[1] = { SinOsc.ar * 0.1} 
+Ndef(\a).play
+
+Ndef(\a).fadeTime_(4)
+Ndef(\a)[1]
+ = nil;
+
+Ndef(\a).objects[1].parents
+Ndef(\a).play
 
 Ndef(\a).sources
 
@@ -199,6 +214,64 @@ a.makeInputMixer
 a.inputMixer.mixer
 
 NodeProxy.perform('audio')
+
+
+NdefG(\g, \a, \b)
+NdefG.all
+
+Ndef(\x, { \in.ar(0!2) })
+
+NdefMixerChannel.newFromNdef(\x);
+
+Ndef.clear
+Ndef(\a)[1] = 
+a = `{ SinOsc.ar * 0.1  } ;
+
+Ndef(\a).objects.at(1).set(\gate,1)
+
+Ndef(\a).fadeTime_(1)
+Ndef(\a).play
+Ndef(\a)[1]
+
+(
+~func = Ndef(\a).at(1);
+~clock = Ndef(\a).clock ? TempoClock.default;
+~fadeTime = 4;
+~index = 1;
+	~rate = if (Ndef.rate == \audio) { \ar } { \kr };
+	Ndef(\a).put(~index, { 
+		var in = ~func.value;
+		in * Line.perform(~rate, 1.0, 0.0, ~fadeTime ? Ndef(\a).fadeTime ? 0.1);
+	});
+
+	~clock.sched(~fadeTime, {
+		Ndef(\a).put(~index, nil);
+		nil;
+	})
+)
+
+
+Ndef(\test, { SinOsc.ar * 0.1  }) ;
+
+f = NdefChannelFunction(Ndef(\a), 1, { SinOsc.ar * 0.1  });
+
+f.put
+Ndef(\a).play
+
+f.clear(4)
+f.vol_(0.1,4)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
