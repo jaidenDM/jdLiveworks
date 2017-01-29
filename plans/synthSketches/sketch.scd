@@ -254,12 +254,45 @@ Ndef(\a)[1]
 Ndef(\test, { SinOsc.ar * 0.1  }) ;
 
 f = NdefChannelFunction(Ndef(\a), 1, { SinOsc.ar * 0.1  });
-
-f.put
 Ndef(\a).play
 
 f.clear(4)
 f.vol_(0.1,4)
+
+Ndef(\m, {MouseX.kr})
+
+f.map(\vol, Ndef(\m))
+f.unmapAll
+
+
+Ndef(\a).unmap(\a1_vol)
+Ndef(\a).controlNames
+
+f.map(\vol, Ndef(\m))
+Ndef(\a).unmap(\vol)
+
+(
+Ndef(\a, { SinOsc.ar * 0.1 });
+n = NdefChannel.newFromNdef(\m);
+n.put( \a, Ndef(\a) );
+n.play;
+)
+
+
+n[\a].proxy.bus
+play
+
+n.stop
+
+
+n[\a].play
+
+
+n.sources[0].cs
+n
+
+
+
 
 
 

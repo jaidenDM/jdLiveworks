@@ -199,7 +199,7 @@ NdefG : AbstractNamedNdefCollection {
 
 	// 	if (result.isNil)
 	// 	{
-	// 		result = super.new.init(groupKey, *aKeys.postln);
+	// 		result = super.new.init(groupKey, *aKeys);
 	// 		all[groupKey] = result;
 	// 	} 
 
@@ -219,36 +219,60 @@ NdefG : AbstractNamedNdefCollection {
 
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
-/* should inherit from node proxy ? */
+// : SynthDefControl
 
-NdefChannelFunction {
-	var <>mixer, <>index, <>input, <>mVol, <>mLag, <>volControl, <>output;
-
-	*new {|mixer,index, input, vol, lag|
+SynthChannelControl {
+	var <>mixer, <>index, <>input, <>mVol, <>mLag, <>volControl, <>output, <>fadeTime, <>channelOffset;
+	var <>proxy;
+	*new {|mixer, index, input, vol, lag|
 		^super.new.init(mixer, index, input, vol, lag);
 	}
 
-	init {|mixer,index, input, vol, lag|
+	init {|mixer, index, input, vol, lag|
 		this.mixer = mixer;
 		this.index = index;
 		this.input = input;
-		this.vol = vol ? 1.0;
 		this.lag = lag ? 0.05;
-		// this.updateVolumeControl.value;
-		this.put(this.input);
+		this.vol = vol ? 1.0;
+		this.fadeTime = 0.05;
+		this.proxy = NodeProxy.for(mixer.bus);
+		// this.put(this.input);
+		this.makeOutput(this.input);
+		// this.source_(input);
+		this.channelOffset = 0;
 	}
 
-	// updateVolumeControl {
-	// 	if (this.volControl.isNil) { this.volControl = NodeProxy.control };
-	// 	this.volControl.source_(this.vol)
-	// }
-
+	idSymbol { ^(mixer.key++index.asSymbol) }
+	controlId {|name | ^('\\'++this.idSymbol++'_'++name) }
+	
 	makeOutput {|input|
 		this.output = { 
 			input
-			* \vol.kr(this.mVol, \lag.kr(this.mLag))
-			* EnvGen.kr( Env([1, 0], [\releaseTime.kr( mixer.fadeTime ), [\curve.kr(1)]]), \fadeTrig.kr(0), doneAction:2)  
-		} 
+			* NamedControl.kr( this.controlId('vol'),
+				this.mVol,
+				NamedControl.kr(this.controlId('lag'), 
+					this.mLag
+					)
+				)
+			* EnvGen.kr( 
+				Env(
+					[1, 0],
+					[ NamedControl.kr(this.controlId('releaseTime'), mixer.fadeTime)],
+					[ NamedControl.kr(this.controlId('curve'), 1)]
+				),
+				NamedControl.kr(this.controlId('gate'), 0),
+				doneAction: 2
+			)  
+		};
+
+		this.proxy.put(this.index, this.output); 
+	}
+
+	// Setting/Getting
+	set {| ... argPairs|
+		argPairs.pairsDo {|key, val|
+			mixer.set(key, val);
+		}
 	}
 
 	vol_{|aVol, aLag| 
@@ -264,29 +288,54 @@ NdefChannelFunction {
 	}
 	lag { ^mLag }
 
-	// clearControl {|fadeTime|
-	// 	this.volControl.clear(fadeTime);
-	// }
 
-	set {| ... argPairs|
+	source_ {|aInput|
+		this.input = input;
+		this.makeOutput(this.input);
+	}
+
+	source {
+		^this.output
+	}
+
+	//Mapping
+	map {| ... argPairs|
 		argPairs.pairsDo {|key, val|
-			mixer.objects.at(index).set(key.postln, val.postln);
+			mixer.map(this.controlId(key), val);
 		}
 	}
 
-	put {|input| 
-		this.makeOutput(input);
-		this.mixer.put(index, this.output) }
+	unmap {| ... aKeys |
+		aKeys.do {|key|
+			mixer.unmap(this.controlId(key));
+		}
+	}
 
-	clear {|fadeTime, curve = 1|
+	unmapAll {
+		this.mixer.controlNames.do{|controlName|
+			var name = controlName.name.asString;
+			if ( name.contains(this.idSymbol.asString) )
+			{ mixer.unmap(name.asSymbol) } //???
+		};
+	}
+	// Source Setting
+
+	// put {|input| 
+	// 	this.makeOutput(input);
+	// 	this.mixer.put(index, this.output) 
+	// }
+
+	remove { mixer.put(index, nil); }
+
+	//ClearUp
+	clear {|aFadeTime, curve = 1|
 		var func = mixer.at(index);
 		var clock = mixer.clock ? TempoClock.default;
-
-		this.set(\releaseTime, fadeTime ? mixer.fadeTime, \curve, curve, \fadeTrig, 1);
+		aFadeTime ?? {this.fadeTime = aFadeTime};
+		this.set(\releaseTime, aFadeTime ? this.fadeTime ? mixer.fadeTime, this.controlId('curve'), curve, this.controlId('gate'), 1);
 
 		clock.sched(fadeTime, {
-			mixer.put(index, nil);
-			// this.clearControl(fadeTime);
+			this.remove;
 			nil;
 		})
 
@@ -296,8 +345,8 @@ NdefChannelFunction {
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
 
-NdefMixerChannel : NodeProxy {
-	var <>chans, <>dest;
+NdefChannel : NodeProxy {
+	var <>chans, <>dest, <>rateSymbol;
 
 	*new {| ... arglist|
 		^super.new.init(*arglist);
@@ -305,9 +354,12 @@ NdefMixerChannel : NodeProxy {
 
 	*newFromNdef {|aKey|
 		var dest = Ndef(aKey);
-		var rate = dest.rate;
+		var rate = dest.rate.isNeutral.if({\audio});
 		var numChannels = dest.numChannels;
-		^this.perform(rate, Server.default, numChannels)
+		
+		^this
+		.perform(rate, Server.default, numChannels)
+		.rateSymbol_( (rate == \audio).if({ \ar },{ \kr }));
 	}
 
 	init {| ... arglist|
@@ -317,19 +369,23 @@ NdefMixerChannel : NodeProxy {
 
 	put {| ... aKeyDefPairs|
 		aKeyDefPairs.pairsDo{|key, def|
-			var vol;
-			vol = chans.at(key).vol;
-			if (vol.isNil)
-			{
-				chans[key] = NodeProxy.control.source_(1.0);
+			var chan = this.chans.at(key);
+			if (chan.isNil) 
+			{ 
+				this.chans.put(key, 
+					SynthChannelControl(
+						this,
+						key, 
+						{ def.perform( this.rateSymbol ) }
+					)
+				) 
 			};
-			this.chans.at(key).func_{ def.ar * this.chans.vol.kr } ;
-			super.put( key, this.chans.at(key).func )
+			super.put( key, this.chans.at(key).output )
 		}
 	}
 
 	at {|index|
-
+		^chans.at(index)
 	}
 	
 }
@@ -351,7 +407,7 @@ NdefGroupMixer : AbstractNamedNdefCollection {
 		this.proxy = NodeProxy.perform(
 			this.dest.rate, 
 			Server.default,
-			numChannels: this.dest.numChannels.postln);
+			numChannels: this.dest.numChannels);
 				//.bus_(this.dest.bus); //TO DO: Find A way to use minimal buses
 
 
@@ -405,7 +461,6 @@ NdefGroupMixer : AbstractNamedNdefCollection {
 	// }
 
 }
-
 
 
 
