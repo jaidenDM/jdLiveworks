@@ -264,8 +264,8 @@ n.put( \a, Ndef(\a) );
 n.play
 )
 
-n[\a].stop
-n[\a].play
+n[\a].stop(4)
+n[\a].play(8)
 n[\a].set(\trigma, 1);
 n[\a].set(n[\a].controlId('trig'), 1);
 n[\a].controlId('trig') == \trigma

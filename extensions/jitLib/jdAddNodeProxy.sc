@@ -53,6 +53,18 @@ AbstractNdefCollection {
 		}
 	}
 
+	map {| ... arglist|
+		this.do{|def|
+			def.map(*arglist)
+		}
+	}
+
+	unmap {| ... arglist|
+		this.do{|def|
+			def.unmap(*arglist)
+		}
+	}
+
 }
 
 
@@ -265,8 +277,8 @@ NodeProxyChannel {
 					[ this.idNamedControl('releaseTime', mixer.fadeTime)],
 					[ this.idNamedControl('curve', 1)]
 				),
-				this.idNamedControl('t_trig', 0)
-				// doneAction: 0
+				this.idNamedControl('t_trig', 0),
+				doneAction: 0
 			)  
 		};
 	}
@@ -316,8 +328,9 @@ NodeProxyChannel {
 
 	remove { mixer.put(index, nil); }
 
+	/* T methods ?  */
 	play {|aQuant, aFadeTime, curve = 1|
-		this.clock.play({ 
+		(this.clock ? TempoClock.default ).play({ 
 			this.set(
 				this.controlId('releaseTime'), aFadeTime ? this.fadeTime ? mixer.fadeTime,
 				this.controlId('start'), 0.0, 
@@ -329,7 +342,7 @@ NodeProxyChannel {
 	}
 
 	stop {|aQuant, aFadeTime, curve = 1|
-		this.clock.play({ 
+		(this.clock ? TempoClock.default ).play({ 
 			this.set(
 				this.controlId('releaseTime'), aFadeTime ? this.fadeTime ? mixer.fadeTime,
 				this.controlId('start'), 1.0, 
@@ -357,25 +370,34 @@ NodeProxyChannel {
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
 
-NdefChannel : NodeProxy {
-	var <>chans, <>dest, <>rateSymbol;
+NdefChannelMixer : AbstractNdefCollection {
+	var <>chans, <>dest, <>rateSymbol, <>proxy;
+	classvar all;
 
-	*newFromNdef {|aKey|
-		var dest = Ndef(aKey);
-		var rate = dest.rate.isNeutral.if({\audio});
-		var numChannels = dest.numChannels;
-		
-		^this
-		.perform(rate, Server.default, numChannels)
-		.rateSymbol_( (rate == \audio).if({ \ar }, { \kr }))
-		.dest_(dest);
+	*initClass { all = () }
+
+	*new {|aKey|
+		^super.new.init(aKey);
 	}
 
-	init {| ... arglist|
-		super.init(*arglist);
+	init {|aKey|
+		var dest;
+		dest = Ndef(aKey);
+		this.rateSymbol = (dest.rate == \audio).if({ \ar }, { \kr });
+		this.dest = dest;
 		this.chans = ();
+
+		this.makeProxyIfDoesItNotExist;
 	}
 
+	makeProxyIfDoesIfNotExist {
+		var rate = this.dest.rate.isNeutral.if({\audio},{ this.dest.rate });
+		var numChannels = this.dest.numChannels;
+		if (this.proxy.isNil)
+		{ this.proxy = NodeProxy.perform(rate, Server.default, numChannels) }
+	}
+
+	//Source Setting
 	put {| ... aKeyDefPairs|
 		aKeyDefPairs.pairsDo{|key, def|
 			var chan = this.chans.at(key);
@@ -383,98 +405,47 @@ NdefChannel : NodeProxy {
 			{ 
 				this.chans.put(key, 
 					NodeProxyChannel.new(
-						this,
+						this.proxy,
 						key, 
 						{ def.perform( this.rateSymbol ) }
 					)
 				) 
 			};
-			super.put( key, this.chans.at(key).output )
+			this.proxy.put( key, this.chans.at(key).output )
 		}
 	}
 
+	// Access
 	at {|index|
 		^chans.at(index)
 	}
+
+	removeAt {|index|
+		this.chans.at(index).remove;
+		this.chans.removeAt(index);
+	}
+
+	asNodeProxy { ^this.proxy } 
+
+	//Iteration
+	do {|func|
+		this.chans.do{|chan|
+			func.value(chan)
+		}
+	}
+
+	vol_ {|aVol, aLag|
+		this.do{|chan|
+			chan.vol_(aVol, aLag)
+		}
+	}
+
+
 	
 }
 
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
-
-NdefGroupMixer : AbstractNamedNdefCollection {
-
-	var <>proxy, <>dest, <>vols, <>chans;
-
-	*new {|aKey|
-		^super.new.init(aKey)
-	}
-
-	init {|aKey|
-		super.init(aKey);
-		this.dest = Ndef(aKey);
-		this.proxy = NodeProxy.perform(
-			this.dest.rate, 
-			Server.default,
-			numChannels: this.dest.numChannels);
-				//.bus_(this.dest.bus); //TO DO: Find A way to use minimal buses
-
-
-		this.vols = ();
-	}
-
-	put {| ... aKeyDefPairs|
-
-		aKeyDefPairs.pairsDo{|key, def|
-			var vol;
-			vol = vols.at(key);
-			if (vol.isNil)
-			{
-				vols[key] = NodeProxy.control.source_(1.0);
-			};
-			proxy.put(
-				key, 
-				{ def.ar * vols[key].kr }
-			)
-
-		}
-	}
-
-	remove {|aKeys, aFadeTime|
-		aKeys.do{|aKey|
-			proxy.at(aKey).clear(aFadeTime)
-		}
-	}
-
-	// Setting
-	// vol {|aKey, aVal|
-	// 	vols[aKey].source_(aVal)
-	// }
-
-	// Access
-	at {|aKey|
-		// ^chan[aKey]
-	}
-
-	// Cleanup
-
-	// removeAt {|aKey|
-	// 	/* fadeTime ?  */
-	// 	proxy.at(aKey).clear;
-	// 	vols.removeAt(aKey).clear;	
-	// }
-
-	// free {
-	// 	vols.clear;
-	// 	proxy.clear;
-	// }
-
-}
-
-
-
-
-
 
 
 

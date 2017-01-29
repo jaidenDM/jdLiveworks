@@ -127,13 +127,12 @@ NdefManager {
 		^Ndef(this.key)
 	}
 
-	//Multi Ins
-
-	makeMixer {|aKey|
+	//Input Mixers
+	makeMixerIfNotAlready {|aKey|
 		if (this.mixers[aKey].isNil)
 		{
 			(this.cs ++ " new Input mixer").postln;
-			this.mixers[aKey] = NdefGroupMixer(this.key);
+			this.mixers[aKey] = NdefChannelMixer(this.key);
 		}
 	}
 
@@ -162,9 +161,9 @@ NdefManager {
 
 +  Ndef {
 
-	mixer {|aKey|
-		this.manager.makeMixer(aKey);
-		^this.manager.mixers.at(aKey);
+	mixer {|aIndex|
+		this.manager.makeMixerIfNotAlready(aIndex);
+		^this.manager.mixers.at(aIndex);
 	}
 
 	// Routing Management
