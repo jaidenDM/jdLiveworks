@@ -249,9 +249,9 @@ NodeProxyChannel {
 		this.mixer = aMixer;
 		this.index = aIndex;
 		this.input = aInput;
-		this.lag = aLag ? 0.05;
+		this.lag = aLag ? 0.01;
 		this.vol = aVol ? 1.0;
-		this.fadeTime = 0.05;
+		this.fadeTime = 0.01;
 
 		this.clock = aMixer.clock;
 		this.quant = aMixer.quant;
@@ -259,13 +259,13 @@ NodeProxyChannel {
 		this.makeOutput(aInput);
 	}
 
-	idSymbol { ^(this.mixer.dest.key++index.asSymbol).asSymbol }
+	idSymbol { ^(index.asSymbol).asSymbol }
 	controlId {|name | ^(name.asSymbol++this.idSymbol).asSymbol }
 	idNamedControl{ | name, val, lag| ^NamedControl.kr( this.controlId(name), val, lag) }
 
 	makeOutput {|input|
 		this.output = { 
-			input.value
+			input
 			* 	this.idNamedControl(
 					'vol',
 					this.mVol,
@@ -286,7 +286,6 @@ NodeProxyChannel {
 	// Setting/Getting
 	set {| ... argPairs|
 		argPairs.pairsDo {|key, val|
-			this.mixer.postln;
 			this.mixer.set(key, val);
 		}
 	}
@@ -329,8 +328,11 @@ NodeProxyChannel {
 	remove { mixer.put(index, nil); }
 
 	/* T methods ?  */
-	play {|aQuant, aFadeTime, curve = 1|
-		(this.clock ? TempoClock.default ).play({ 
+	play {| /*aQuant, */ aFadeTime, curve = 1|
+		// some type of check
+		this.mixer.play;
+
+		// (this.clock ? TempoClock.default ).play({ 
 			this.set(
 				this.controlId('releaseTime'), aFadeTime ? this.fadeTime ? mixer.fadeTime,
 				this.controlId('start'), 0.0, 
@@ -338,11 +340,11 @@ NodeProxyChannel {
 				this.controlId('curve'), curve,
 				this.controlId('t_trig'), 1
 			);
-		}, aQuant ? this.quant)
+		// }, aQuant ? this.quant ? nil)
 	}
 
-	stop {|aQuant, aFadeTime, curve = 1|
-		(this.clock ? TempoClock.default ).play({ 
+	stop {| /*aQuant, */ aFadeTime, curve = 1|
+		// (this.clock ? TempoClock.default ).play({ 
 			this.set(
 				this.controlId('releaseTime'), aFadeTime ? this.fadeTime ? mixer.fadeTime,
 				this.controlId('start'), 1.0, 
@@ -350,7 +352,7 @@ NodeProxyChannel {
 				this.controlId('curve'), curve,
 				this.controlId('t_trig'), 1
 			);
-		}, aQuant ? this.quant)
+		// }, aQuant ? this.quant ? nil)
 	}
 
 	//ClearUp
@@ -365,6 +367,48 @@ NodeProxyChannel {
 		})
 
 	}
+}
+
+
+/* ------------------------------------------------------------------------
+------------------------------------------------------------------------- */
+
+
+NodeProxyChannelGroup : AbstractNdefCollection {	
+	var <>chans;
+	*new {| ... aChans| 
+		^super.new.init(*aChans);
+	}
+	
+	init {| ... aChans|
+		this.chans = ();
+		this.put(*aChans);
+	}
+
+	put {| ... aChans|
+		aChans.do{|aChan|
+			this.chans.put(aChan.index, aChan)
+		}
+	}
+
+	do {|func|
+		this.chans.do{|chan|
+			func.value(chan)
+		}
+	}
+
+	remove {
+		this.do{|chan|
+			chan.remove
+		}
+	}
+
+	vol {|aVol, aLag|
+		this.do{|chan|
+			chan.vol(aVol, aLag)
+		}
+	}
+
 }
 
 /* ------------------------------------------------------------------------
@@ -387,10 +431,10 @@ NdefChannelMixer : AbstractNdefCollection {
 		this.dest = dest;
 		this.chans = ();
 
-		this.makeProxyIfDoesItNotExist;
+		this.makeProxyIfItDoesNotExist;
 	}
 
-	makeProxyIfDoesIfNotExist {
+	makeProxyIfItDoesNotExist {
 		var rate = this.dest.rate.isNeutral.if({\audio},{ this.dest.rate });
 		var numChannels = this.dest.numChannels;
 		if (this.proxy.isNil)
@@ -407,7 +451,7 @@ NdefChannelMixer : AbstractNdefCollection {
 					NodeProxyChannel.new(
 						this.proxy,
 						key, 
-						{ def.perform( this.rateSymbol ) }
+						{ def.ar }
 					)
 				) 
 			};
@@ -416,8 +460,12 @@ NdefChannelMixer : AbstractNdefCollection {
 	}
 
 	// Access
-	at {|index|
-		^chans.at(index)
+	at {| ... aIndices|	
+		var chanGroup = NodeProxyChannelGroup();
+		aIndices.do{|index|
+			chanGroup.put(this.chans[index]);
+		}
+		^chanGroup;
 	}
 
 	removeAt {|index|
@@ -429,6 +477,7 @@ NdefChannelMixer : AbstractNdefCollection {
 
 	//Iteration
 	do {|func|
+		func.value(this.proxy);
 		this.chans.do{|chan|
 			func.value(chan)
 		}

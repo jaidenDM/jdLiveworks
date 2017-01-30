@@ -136,6 +136,8 @@ NdefManager {
 		}
 	}
 
+	hasMixerProxies { ^( if (this.mixers.size > 0 ) { true} {false} )}
+
 	clearMixerInput {|aKey, aInKey|
 		this.mixers.at(aKey).clear(aInKey);
 	}
@@ -154,7 +156,7 @@ NdefManager {
 }
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
-
+NdefM : Ndef { } // Use same proxy space but with different accesses
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
 //Ndef Extensions for compatibility
@@ -165,6 +167,8 @@ NdefManager {
 		this.manager.makeMixerIfNotAlready(aIndex);
 		^this.manager.mixers.at(aIndex);
 	}
+
+	hasMixerProxies { ^this.manager.hasMixerProxies; }
 
 	// Routing Management
 	manager {
@@ -223,12 +227,27 @@ NdefManager {
 
 	//Multi
 	<<+ {|proxy, key = \in|
-		this.mixer(proxy.key).put(proxy.key, proxy);
-		this.perform ('<<>', this.mixer(key).proxy, key);
+		this.mixer(key).put(proxy.key, proxy);
+		this.perform ('<<>', this.mixer(key).asNodeProxy, key);
 	}
 
 	+>> {|proxy, key = \in|
 		proxy.perform ('<<+', this, key);
+	}
+
+	at {|first = \in ... list|
+		if (this.hasMixerProxies)
+		{
+			if (list.isEmpty.not)
+			{
+				^this.mixer(first).at(*list)
+			}{
+				^this.mixer(first)
+			}
+			
+		}{
+			^super.at(first)
+		}
 	}
 
 	// <<- {|proxy, key = \in|
@@ -240,4 +259,10 @@ NdefManager {
 	// }
 
 }
+
+
+
+/* ------------------------------------------------------------------------
+------------------------------------------------------------------------- */
+
 

@@ -279,22 +279,46 @@ n.sources.cs
 n.set()
 n.controlNames
 
-Ndef(\a)[4] =  {SinOsc.ar * 0.1 * EnvGen.kr( Env.perc(0.01,1.0), \t_gate.kr(0))}
-Ndef(\a).play
+Ndef(\a)[0] =  {SinOsc.ar * 0.1 * EnvGen.kr( Env.perc(0.01,1.0),1)}; Ndef(\a).play
 Ndef(\a).set(\t_gate,1)
 
+(
 
+Ndef(\a, { SinOsc.ar * 0.1!2 });
+// Ndef(\z, {MouseX.kr});
+NdefM(\m, { \in.ar(0!2) });
 
+// m = NdefChannelMixer(\m);
 
+// m.put(\a, Ndef(\a));
 
+// {Ndef(\a).ar}.play
+// m.play
+NdefM(\m).play <<+ Ndef(\a)
 
+)
 
+NdefM(\m).hasMixerProxies
 
+NdefM(\m)[\in][\a].play
 
+Ndef(\m) <<+ Ndef(\b, { SinOsc.ar((Scale.aeolian.degrees + 48).midicps).mean!2 * 0.1 })
 
+(
+	Ndef(\m).mixer(\in, \b, \a ].stop;
 
+)
+Ndef(\m).mixer(\in).play
+Ndef(\m).manager.mixers
 
+Ndef(\a).play
 
+m.isPlaying
+m.stop
+m.play
+m.isPlaying
+
+m[\a].stop
 
 
 
