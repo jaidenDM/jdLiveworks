@@ -322,6 +322,52 @@ m[\a].stop
 
 
 
+Ndef(\osc, {
+	SinOsc.ar(\freq.kr(100)) * 0.1!2
+}).play
+
+
+Pdef(\osc,
+	Pbind( 
+		\freq, Prand({rrand(20,20000)}!5, inf),
+		\dur, 0.125 
+		)
+	)
+
+Pdef.all
+
+Ndef(\osc)[1] = \pset -> (Pdef(\osc))
+
+Ndef(\osc).play[1][\pset] = Pdef(\osc)
+
+Ndef(\osc)[1]
+
+Ndef(\osc).pause
+Ndef(\osc).resume
+
+
+
+NdefM(\a, {SinOsc.ar * 0.1})
+NdefM(\a).stop
+NdefM.all
+Ndef(\a).stop
+
+Ndef(\)
+
+NdefM.dictFor(Server.default, \multi);
+Ndef(\a)
+
+p = ProxySpace(s,\p);
+q = ProxySpace(s,\q);
+w = ProxySpace()
+
+p.envir
+q.envir
+p[\a].play
+q[\a].play
+w[\a].play
+ProxySpace.at(\a)
+
 
 
 

@@ -1,20 +1,18 @@
-
 //
-
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
-
+/* 
+	Improvements:
+		Managing Pattern inputs ->
+			Pdef SubClass for NodeProxy Setting
+				just for cleaner namespace setting
+*/
+/* Doing Too Many Things? */
 NdefManager {
 	var <>key;
 	// var <>originalSource;//Source Control
 	var <>ins, <>outs;//Routing
-	var  <>mixers;
-	/*
-		InType:
-			/replace -> replace mapped control
-			/sum -> sum mapped controls
-			/mean
-	*/
+	var <>mixers;
 	classvar <>all;
 	*initClass { all = () }
 
@@ -142,24 +140,14 @@ NdefManager {
 		this.mixers.at(aKey).clear(aInKey);
 	}
 
-	freeMixer {|aKey|
-		this.mixers.at(aKey).clear;
-	}
-
 	freeMixers {
 		this.mixers.do{|mixer|
 			mixer.free;
 		}
 	}
-
-
 }
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
-NdefM : Ndef { } // Use same proxy space but with different accesses
-/* ------------------------------------------------------------------------
-------------------------------------------------------------------------- */
-//Ndef Extensions for compatibility
 
 +  Ndef {
 
@@ -234,22 +222,6 @@ NdefM : Ndef { } // Use same proxy space but with different accesses
 	+>> {|proxy, key = \in|
 		proxy.perform ('<<+', this, key);
 	}
-
-	at {|first = \in ... list|
-		if (this.hasMixerProxies)
-		{
-			if (list.isEmpty.not)
-			{
-				^this.mixer(first).at(*list)
-			}{
-				^this.mixer(first)
-			}
-			
-		}{
-			^super.at(first)
-		}
-	}
-
 	// <<- {|proxy, key = \in|
 
 	// }
