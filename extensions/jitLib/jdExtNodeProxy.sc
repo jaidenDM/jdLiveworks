@@ -10,7 +10,7 @@
 	>> { | proxy, key = \in |
 		if (proxy.isNil) { ^this.unmap(key) };
 		proxy.perform('<<', this, key);
-		^thisßß
+		^this
 	}
 
 	/* MultiIn Proxies */

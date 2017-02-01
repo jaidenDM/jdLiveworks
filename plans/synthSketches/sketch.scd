@@ -284,7 +284,7 @@ Ndef(\a).set(\t_gate,1)
 
 (
 
-Ndef(\a, { SinOsc.ar * 0.1!2 });
+Ndef(\a, { SinOsc.ar * 0.1!2 }).play;
 // Ndef(\z, {MouseX.kr});
 NdefM(\m, { \in.ar(0!2) });
 
@@ -334,41 +334,74 @@ Pdef(\osc,
 		)
 	)
 
-Pdef.all
 
-Ndef(\osc)[1] = \pset -> (Pdef(\osc))
+Ndef(\osc)[0] = { SinOsc.ar(\freq.kr(100)) * 0.1!2 }
+Ndef(\osc)[1] =  \set -> Pdef(\osc)
+Ndef(\osc)[1].value
+
+Association
 
 Ndef(\osc).play[1][\pset] = Pdef(\osc)
 
-Ndef(\osc)[1]
+\a.key
 
-Ndef(\osc).pause
-Ndef(\osc).resume
+/* ------------------------------------------------------------------------
+------------------------------------------------------------------------- */
+
+// tex
+(
+Ndef(\osc, { SinOsc.ar(\freq.kr(100)) * 0.1!2 });
+
+NdefG(\g0, \osc, \osc2);
+NdefG(\g1, NdefG(\g0) );
+// NdefG(\gg1, NdefG(\g1), Ndef(\g2));
+)
+NdefG(\g1).defs
+
+Ndef.clear
+
+NdefG(\g0)[\os]c
+
+~dig = {|arr, aString, aIndent|
+	var string = aString ? "";
+	var indent = aIndent ? "";
+	arr.do{|item|
+		// item.postln;
+		if (item.class == Ndef)
+		{
+			// string = (string ++++ "  asdads. ");
+			// (item.asString++" is Ndef").postln;
+			string = (string ++ "\n" ++ indent ++  item.asString);
+			} {
+
+			// string = ( string ++ (item.asString++" is NdefG") );
+			string = (string ++ "\n" ++ indent ++  item.asString++ ":");
+			indent = indent ++ "\t";
+			string = (string ++ ~dig.value(item.defs, string, indent) );
+		}
+	};
+	string;
+}
+
+a = ~dig.value( NdefG(\g1).defs )
 
 
 
-NdefM(\a, {SinOsc.ar * 0.1})
-NdefM(\a).stop
-NdefM.all
-Ndef(\a).stop
-
-Ndef(\)
-
-NdefM.dictFor(Server.default, \multi);
-Ndef(\a)
-
-p = ProxySpace(s,\p);
-q = ProxySpace(s,\q);
-w = ProxySpace()
-
-p.envir
-q.envir
-p[\a].play
-q[\a].play
-w[\a].play
-ProxySpace.at(\a)
+a
+.
+NdefG.all
 
 
+NdefG(\g1).defs
+
+NdefG(\g0).defs
+NdefG(\g1).defs
+
+NdefG(\g0).stop
+NdefG(\g1).play(0)
+
+
+NdefG(\g1).play
 
 
 
