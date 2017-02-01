@@ -350,40 +350,76 @@ Ndef(\osc).play[1][\pset] = Pdef(\osc)
 
 // tex
 (
+
 Ndef(\osc, { SinOsc.ar(\freq.kr(100)) * 0.1!2 });
 
 NdefG(\g0, \osc, \osc2);
-NdefG(\g1, NdefG(\g0) );
+NdefG(\f0, \osc3, \osc4);
+NdefG(\g1, NdefG(\g0) , NdefG(\f0));
 // NdefG(\gg1, NdefG(\g1), Ndef(\g2));
 )
-NdefG(\g1).defs
 
-Ndef.clear
+NdefG(\f0, \osc3, \osc4, \osc5).source_({ SinOsc.ar(rrand(200,1000))!2 })
+NdefG(\f0).clear
+NdefG(\f0).play
+NdefG(\f0).source_({ SinOsc.ar(rrand(200,1000))!2 })
+
+NdefG(\f0, \osc3, \osc4, \osc5).source_({ SinOsc.ar(rrand(200,1000))!2 });
+NdefM(\m, {\in.ar(0!2)}).putGroup(\f0);
+NdefM(\m)[\in][0,1,2].play
+
+NdefG(\f0).stop
+
+Ndef(\osc3).source_{ SinOsc.ar() * 0.1!2}
+
+
+Ndef(\osc3).play
+
+NdefG(\g0).contentsString
+
+NdefG(\g1).dig(NdefG(\g1).defs)
+NdefG(\g1).contentsString
+NdefG(\g0)
+
+NGroup(\osc,\osc2)
+
+)gcNdef.clear
 
 NdefG(\g0)[\os]c
 
-~dig = {|arr, aString, aIndent|
+AbstractNdefCollection()
+
+~dig = {|arr, aString, aDepth|
 	var string = aString ? "";
-	var indent = aIndent ? "";
+	var depth =  aDepth ? 0;
+	depth = depth + 1;
+
 	arr.do{|item|
 		// item.postln;
 		if (item.class == Ndef)
 		{
+			var indent = ""; 
+			(depth).do{ indent = indent + "\t" };
 			// string = (string ++++ "  asdads. ");
 			// (item.asString++" is Ndef").postln;
-			string = (string ++ "\n" ++ indent ++  item.asString);
+			string = (string ++ "\n"++ indent ++ item.asString);
 			} {
-
+			var indent = ""; 
+			(depth).do{ indent = indent + "\t" };
 			// string = ( string ++ (item.asString++" is NdefG") );
-			string = (string ++ "\n" ++ indent ++  item.asString++ ":");
-			indent = indent ++ "\t";
-			string = (string ++ ~dig.value(item.defs, string, indent) );
+			string = (string ++ "\n"++ indent ++ item.asString++ ":");
+			string = ~dig.value(item.defs, string, depth) ;
 		}
 	};
+	depth.postln;
 	string;
 }
 
-a = ~dig.value( NdefG(\g1).defs )
+(
+a = "";
+a = (a ++ NdefG(\g1).asString++ ":");
+a = a.asString ++ ("\n" ++ ~dig.value( NdefG(\g1).defs ,a).asString )
+)
 
 
 

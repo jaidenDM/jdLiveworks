@@ -37,11 +37,11 @@
 	/*  */
 	resetInputsOnQuant {|aClock, aQuant|
 		this.doOnQuant(aClock, aQuant, {
-			/*
+			
 				this.inputs.do{|input|
 					input.resetSourceOnQuant(aClock, aQuant)
 				}
-			*/
+			
 			("resetting INPUTS of Ndef(\\" ++ (this.key.asString) ++ ")").postln;
 		})
 	}
