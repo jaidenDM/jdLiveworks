@@ -1,19 +1,20 @@
-+ Collection {
++ Order {
 
-	firstIndexAt {|object|
-		var index;
-		this.do{|item, i|
-			if (item == object)  {	^index = i }
-		}
-		^index;
+	append {|index, object|
+		indices = indices.add(index);
+		array = array.add(object);
 	}
 
-	performAt {|object, func|
-		var index;
-		this.do{|item, i|
-			if (item == object)  {	func.value(this, item, i) }
-		}
-		^index;
+	forceAdd {|object|
+		var index = this.nextSlotFor(this.lastIndex);
+		indices = indices.add(index);
+		array = array.add(object);
+	}
+
+	putAtEnd {|index|
+		var obj = this.at(index).copy;
+		this.removeAt(index);
+		this.append(index, obj);
 	}
 
 }

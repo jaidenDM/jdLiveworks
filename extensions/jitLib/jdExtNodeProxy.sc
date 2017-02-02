@@ -1,23 +1,8 @@
-+ NodeProxy {
-
-	/* Routing */
-	<< { | proxy, key = \in |
-		if (proxy.isNil) { ^this.unmap(key)};
-		this.perform('<<>', proxy, key);
-		^this
-	}
-
-	>> { | proxy, key = \in |
-		if (proxy.isNil) { ^this.unmap(key) };
-		proxy.perform('<<', this, key);
-		^this
-	}
-
-	/* MultiIn Proxies */
-
++ Ndef {
 	/* Scheduling */
+	resetSource { this.source_(this.source) }
 
-	doOnQuant {| aClock, aQuant, func|
+	doOn {| aClock, aQuant, func|
 		var clock = aClock ? this.clock ? TempoClock.default;
 		var quant = (aQuant ? this.quant).asQuant;
 		
@@ -27,47 +12,34 @@
 		})
 	}
 
-	resetSourceOnQuant {|aClock, aQuant|
-		this.doOnQuant(aClock, aQuant, {
-			this.source_(this.source);
+	quantizeSource {|aClock, aQuant|
+		this.doOn(aClock, aQuant, {
+			this.resetSource;
 			("resetting SOURCE of Ndef(\\" ++ (this.key.asString) ++ ")").postln;
 		})
 	}
 
 	/*  */
-	resetInputsOnQuant {|aClock, aQuant|
-		this.doOnQuant(aClock, aQuant, {
+	quantizeInputs {|aClock, aQuant|
+		this.doOn(aClock, aQuant, {
 			
-				this.inputs.do{|input|
-					input.resetSourceOnQuant(aClock, aQuant)
-				}
-			
+			this.ins.ndefs.keysValuesDo{|key,input| 
+				input.postln;
+				input.resetSource;
+			};
 			("resetting INPUTS of Ndef(\\" ++ (this.key.asString) ++ ")").postln;
 		})
 	}
 
+	quantizeOutputs {|aClock, aQuant|
+		this.doOn(aClock, aQuant, {
+			this.ins.ndefs.keysValuesDo{|key, output| 
+				output.resetSource;
+			};
+			("resetting OUTPUTS of Ndef(\\" ++ (this.key.asString) ++ ")").postln;
+		})
+	}
 }
-
-
-
-/* Theoretical */
-// Jdef /* name in progress : 3-4 letters */ : Ndef {
-	
-// 	var <>originalSource;
-
-// 	/* esperimental use with TDuty */
-// 	addSender {|addr|
-// 		this.originalSource = this.source.copy;
-// 		this.source_({
-// 			var temp = this.source.value;
-// 			SendReply.kr(temp, addr, temp)
-// 			temp;
-// 		})
-// 	}
-
-// }
-
-
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
 

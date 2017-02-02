@@ -33,7 +33,7 @@ TO DO:]
 AbstractControl {
 
 	var <>serverTreeFunc;
-	var <>controlProxy, <>server, <>numChannels;
+	var <>proxy, <>server, <>numChannels;
 
 	onReceive { }
 
@@ -57,33 +57,35 @@ AbstractControl {
 	}
 
 	resetProxySource {
-		if (this.controlProxy.isNil) {
-			// this.controlProxy = Bus.control(this.server ? Server.default, 1).set(0)
-			this.controlProxy = 
+		if (this.proxy.isNil) {
+			// this.proxy = Bus.control(this.server ? Server.default, 1).set(0)
+			this.proxy = 
 				NodeProxy
 				.control(this.server ? Server.default, (this.numChannels ? 1))
 				.fadeTime_(0.05)
 				.source_(0);
 		};
 
-		if (this.controlProxy.isNeutral) {
-			this.controlProxy
+		if (this.proxy.isNeutral) {
+			this.proxy
 				.fadeTime_(0.05)
 				.source_(0);
 		}
 	}
 
 	setControlProxy {|val|
-		this.controlProxy.source_(val)
+		this.proxy.source_(val)
 	}
 
 	kr {|spec|
 		spec !? {
 			spec = spec.asSpec.postln;
-			^{ spec.map(this.controlProxy.kr) }
+			^spec.map(this.proxy.kr)
 		};
-		^this.controlProxy.kr;
+		^this.proxy.kr;
 	}
+
+	asNodeProxy { ^this.proxy }
 }
 
 /* MIDI */
@@ -143,9 +145,10 @@ MIDIControl : AbstractMIDIControl {
 
 	tr_ {|onFunc, offFunc|
 		this.cc_{|val,num|
-			if (val =< 0)
+			val.postln;
+			if (val > 0)
 			{ onFunc.value(val,num)}
-			{ offFunc.value(val,num)}
+			{ (offFunc ? {} ).value(val,num)}
 		}
 	}
 
@@ -219,6 +222,10 @@ AbstractMIDIControlGroup : AbstractControl {
 	clear {
 		this.free;
 	}	
+
+	at {|index|
+		^this.controls.at(index)
+	}
 }
 
 MIDIControlGroup : AbstractMIDIControlGroup {
@@ -363,7 +370,7 @@ MIDIController {
 	}
 	/* ACCESSING */
 	at {| key |
-		^controls[ key ]
+		^controls[ key ] 
 	}
 
 	/* CLEARING */

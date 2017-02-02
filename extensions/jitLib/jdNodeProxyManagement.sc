@@ -82,6 +82,7 @@ NdefManager {
 
 	// Routing
 	addIns {| ... aKeyDefNamePairs|
+
 		ins.add(*aKeyDefNamePairs);
 	}
 
@@ -98,6 +99,7 @@ NdefManager {
 	}
 
 	addOuts {| ... aKeyDefNamePairs|
+
 		outs.add(*aKeyDefNamePairs);
 	}
 
@@ -137,6 +139,7 @@ NdefManager {
 	hasMixerProxies { ^( if (this.mixers.size > 0 ) { true} {false} )}
 
 	clearMixerInput {|aKey, aInKey|
+
 		this.mixers.at(aKey).clear(aInKey);
 	}
 
@@ -145,6 +148,9 @@ NdefManager {
 			mixer.free;
 		}
 	}
+
+	//Scheduling
+
 }
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
@@ -158,11 +164,9 @@ NdefManager {
 	hasMixerProxies { ^this.manager.hasMixerProxies; }
 
 	// Routing Management
-	manager {
-		^NdefManager(this.key)
-	}
-	ins { ^this.manager.ins }
-	outs { ^this.manager.outs }
+	manager {	^NdefManager(this.key) 	}
+	ins 	{ 	^this.manager.ins 		}
+	outs 	{ 	^this.manager.outs 		}
 
 	removeOuts {| ... aKeys|
 		this.manager.removeOuts(*aKeys);
@@ -181,6 +185,7 @@ NdefManager {
 	}
 
 	/* Is there a way to do this without the redefinition */
+	/* Routing Funcs */
 	<<> {|proxy, key = \in|
 		var ctl, rate, numChannels, canBeMapped;
 		if(proxy.isNil) { ^this.unmap(key) };
@@ -211,8 +216,18 @@ NdefManager {
 		^proxy // returns first argument for further chaining
 	}
 
+	<< { | proxy, key = \in |
+		if (proxy.isNil) { ^this.unmap(key)};
+		this.perform('<<>', proxy, key);
+		^this
+	}
 
-	//Multi
+	>> { | proxy, key = \in |
+		if (proxy.isNil) { ^this.unmap(key) };
+		proxy.perform('<<', this, key);
+		^this
+	}
+	// MultiType
 	<<+ {|proxy, key = \in|
 		this.mixer(key).put(proxy.key, proxy);
 		this.perform ('<<>', this.mixer(key).asNodeProxy, key);
@@ -221,13 +236,12 @@ NdefManager {
 	+>> {|proxy, key = \in|
 		proxy.perform ('<<+', this, key);
 	}
-	// <<- {|proxy, key = \in|
+		<<- {|proxy, key = \in|
 
-	// }
+		}
+		->> {|proxy, key = \in|
 
-	// ->> {|proxy, key = \in|
-
-	// }
+		}
 }
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
