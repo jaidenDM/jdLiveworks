@@ -21,6 +21,7 @@
 CompartmentalDataRecorder {
 
 	var <>clock, <>lastEntryTime, <>runningData, <>returnIndexes, <>storedData, <>currentData, <>isRecording;
+	var <>timeQuant;
 	*new {|aClock|
 		^super.new.init(aClock);
 	}
@@ -30,6 +31,7 @@ CompartmentalDataRecorder {
 		this.storedData = List.new;
 		this.currentData = ();
 		this.isRecording = false;
+		timeQuant = 2**(-4);
 	}
 
 	timeSinceLastEntry { ^( this.clock.beats - this.lastEntryTime ) }
@@ -49,8 +51,8 @@ CompartmentalDataRecorder {
 
 		var activeList = this.prDeepAt(this.runningData, this.returnIndexes);
 		this.timeSinceLastEntry.postln;
-		this.set(\dur, this.timeSinceLastEntry.round(0.125).postln; );
-		activeList.add(this.timeSinceLastEntry.round(0.125));
+		this.set(\dur, this.timeSinceLastEntry.round(timeQuant).postln; );
+		activeList.add(this.timeSinceLastEntry.round(timeQuant));
 
 		this.resetLastEntryTime;
 	}
@@ -142,22 +144,22 @@ CompartmentalDataRecorder {
 
 	/*PRIVATE*/
 	/* move this into List class and call as instance method in store */
-	prDeepAt {|arr, inds, i|
-		var ret;
-		if (i.isNil) {
-			i = 0;
-		} {
-			i = i + 1;
-		};
+	// prDeepAt {|arr, inds, i|
+	// 	var ret;
+	// 	if (i.isNil) {
+	// 		i = 0;
+	// 	} {
+	// 		i = i + 1;
+	// 	};
 
-		if ( i == inds.size ) {
-			^ret = arr;
-		} {
-			ret = arr[inds[i]];
-			ret = this.prDeepAt(ret,inds, i)
-		};
-		^ret;
-	}	
+	// 	if ( i == inds.size ) {
+	// 		^ret = arr;
+	// 	} {
+	// 		ret = arr[inds[i]];
+	// 		ret = this.prDeepAt(ret,inds, i)
+	// 	};
+	// 	^ret;
+	// }	
 
 	/* CleanUp */
 
@@ -211,7 +213,8 @@ CompartmentalDataRecorder {
 // }
 
 
-/* NEEDS REFINING */
+/* NEEDS REDOING */
+// Unnecesary?
 RecursiveArray : List {
 	var <>depth;
 	var <>parent;
@@ -282,5 +285,4 @@ RecursiveArray : List {
 	}
 
 	// species { ^this.class}
-
 }
