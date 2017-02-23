@@ -1,249 +1,103 @@
+/* Automatically resend Ndefs when redefining SynthDefs being used */
 
-/* ------------------------------------------------------------------------
-------------------------------------------------------------------------- */
-/* 
-	Improvements:
-		Managing Pattern inputs ->
-			Pdef SubClass for NodeProxy Setting
-				just for cleaner namespace setting
-*/
-/* Doing Too Many Things? */
-NdefManager {
-	var <>key;
-	// var <>originalSource;//Source Control
-	var <>ins, <>outs;//Routing
-	var <>mixers;
+SynthDefManager {
 	classvar <>all;
+	var <> ndefsUsing, <>key;
+
 	*initClass { all = () }
 
-	*postRoutes {|server|
-		var string = "";
-
-		Ndef.all[ server ? Server.default.asSymbol ].envir.pairsDo{|defkey, def|
-
-			string = string + ("\n" ++ def.cs++":");
-
-			if (def.ins.size > 0)
-			{
-				string = string ++ "\n\tIns:";
-				def.ins.do {|key, inDef|
-					string = string + "\n\t\t" 
-						++ (def.cs 
-							++ " << \\" 
-							++ key.asString 
-							++ "."
-							++ (inDef.rate==\audio).if(\ar,\kr).asString 
-							++ " << " 
-							++ inDef.cs
-						);
-				};
-			};
-
-			if (def.outs.size > 0)
-			{
-				string = string ++ "\n\tOuts:";
-					def.outs.do{|key, outDef|
-					string = string 
-						++ "\n\t\t" 
-						++ (def.cs 
-							++ " >> \\" 
-							++ key.asString
-							++ "."++ (outDef.rate==\audio).if(\ar,\kr).asString
-							++ " >> "
-							++ outDef.cs
-						);
-				};
-			}
-		};
-
-		string.postln;
-	}
-
-	*new {|aKey|
-		var ndefManager, key;
-		key = aKey.asSymbol;
-		ndefManager = all[key];
-
-		if (ndefManager.isNil)
+	*new {|name|
+		if (all.at(name).isNil)
 		{
-			ndefManager = super.new.init(key);
-			all[key] = ndefManager;
+			all.put(name, super.new.key_(name).init);
 		}
-		^all[key]
+		^all.at(name);
 	}
 
-	init { |aKey|
-		this.key = aKey;
-		//Routing
-		ins = NDict.new;
-		outs = NDict.new;
-		mixers = ();
+	init {
+		ndefsUsing = ();
 	}
-
-	// Routing
-	addIns {| ... aKeyDefNamePairs|
-
-		ins.add(*aKeyDefNamePairs);
-	}
-
-	removeIns {| ... aKeys|
-		aKeys.do{|aKey|
-			if (ins[aKey].notNil)
-			{
-				var in = ins[aKey];
-				in.outs.remove(aKey)
-			};
-			this.def.unmap(aKey.postln);
-		};
-		ins.remove(*aKeys);
-	}
-
-	addOuts {| ... aKeyDefNamePairs|
-
-		outs.add(*aKeyDefNamePairs);
-	}
-
-	removeOuts {| ... aKeys|
-		aKeys.do{|aKey|
-			if (outs[aKey].notNil)
-			{
-				var out = outs[aKey];
-				out.ins.remove(aKey);
-				out.unmap(aKey)
-			};
-		};
-		outs.remove(*aKeys);
-	}
-
-	removeAllIns {
-		ins.removeAll;
-	}
-
-	removeAllOuts {
-		outs.removeAll;
-	}
-
-	def {
-		^Ndef(this.key)
-	}
-
-	//Input Mixers
-	makeMixerIfNotAlready {|aKey|
-		if (this.mixers[aKey].isNil)
-		{
-			(this.cs ++ " new Input mixer").postln;
-			this.mixers[aKey] = NdefChannelMixer(this.key);
-		}
-	}
-
-	hasMixerProxies { ^( if (this.mixers.size > 0 ) { true} {false} )}
-
-	clearMixerInput {|aKey, aInKey|
-
-		this.mixers.at(aKey).clear(aInKey);
-	}
-
-	freeMixers {
-		this.mixers.do{|mixer|
-			mixer.free;
-		}
-	}
-
-	//Scheduling
-
 }
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
+
+
 +  Ndef {
 
-	mixer {|aIndex|
-		this.manager.makeMixerIfNotAlready(aIndex);
-		^this.manager.mixers.at(aIndex);
-	}
+	onPut {|index, obj, channelOffset, extraArgs, now|
 
-	hasMixerProxies { ^this.manager.hasMixerProxies; }
-
-	// Routing Management
-	manager {	^NdefManager(this.key) 	}
-	ins 	{ 	^this.manager.ins 		}
-	outs 	{ 	^this.manager.outs 		}
-
-	removeOuts {| ... aKeys|
-		this.manager.removeOuts(*aKeys);
-	}
-	
-	removeAllOuts {| ... aKeys|
-		this.manager.removeAllOuts;
-	}
-	
-	removeIns{| ... aKeys|
-		this.manager.removeIns(*aKeys);
-	}
-
-	removeAllIns{| ... aKeys|
-		this.manager.removeAllIns;
-	}
-
-	/* Is there a way to do this without the redefinition */
-	/* Routing Funcs */
-	<<> {|proxy, key = \in|
-		var ctl, rate, numChannels, canBeMapped;
-		if(proxy.isNil) { ^this.unmap(key) };
-		ctl = this.controlNames.detect { |x| x.name == key };
-		rate = ctl.rate ?? {
-			if(proxy.isNeutral) {
-				if(this.isNeutral) { \audio } { this.rate }
-			} {
-				proxy.rate
+		var removeFromSynthDefManager = {
+			var synthDefName = this.manager.synthDefsUsing.at(index ? 0);
+			if (synthDefName.notNil)
+			{
+				SynthDefManager(synthDefName).ndefsUsing.removeAt(this.key);
 			}
 		};
-		numChannels = ctl !? { ctl.defaultValue.asArray.size };
-		canBeMapped = proxy.initBus(rate, numChannels); // warning: proxy should still have a fixed bus
-		if(canBeMapped) {
-			if(this.isNeutral) { this.defineBus(rate, numChannels) };
-			this.xmap(key, proxy);
+
+		if (obj.class == Symbol)
+		{
+			removeFromSynthDefManager.value;
+			this.manager.synthDefsUsing.put(index ? 0, obj);
+			SynthDefManager(obj).ndefsUsing.put(this.key, (\ndef : this, \index : index ? 0))
 		} {
-			"Could not link node proxies, no matching input found.".warn
+			removeFromSynthDefManager.value;
+		}
+	}
+
+	put { | index, obj, channelOffset = 0, extraArgs, now = true |
+		var container, bundle, oldBus = bus;
+
+		if (obj.isNil) { this.removeAt(index); ^this };
+		this.onPut(index, obj, channelOffset, extraArgs, now);
+
+		if(index.isSequenceableCollection) {
+			^this.putAll(obj.asArray, index, channelOffset)
 		};
 
-		/* manager In and Out */
-		if (proxy.class == Ndef) 
-		{
-			this.manager.addIns( key, proxy.key );
-			proxy.manager.addOuts( key, this.key );
-		}
+		bundle = MixedBundle.new;
+		container = obj.makeProxyControl(channelOffset, this);
+		container.build(this, index ? 0); // bus allocation happens here
 
-		^proxy // returns first argument for further chaining
+
+		if(this.shouldAddObject(container, index)) {
+			// server sync happens here if necessary
+			if(server.serverRunning) { container.loadToBundle(bundle, server) } { loaded = false; };
+			this.prepareOtherObjects(bundle, index, oldBus.notNil and: { oldBus !== bus });
+		} {
+			format("failed to add % to node proxy: %", obj, this).postln;
+			^this
+		};
+
+		this.putNewObject(bundle, index, container, extraArgs, now);
+		this.changed(\source, [obj, index, channelOffset, extraArgs, now]);
+
 	}
-
-	<< { | proxy, key = \in |
-		if (proxy.isNil) { ^this.unmap(key)};
-		this.perform('<<>', proxy, key);
-		^this
-	}
-
-	>> { | proxy, key = \in |
-		if (proxy.isNil) { ^this.unmap(key) };
-		proxy.perform('<<', this, key);
-		^this
-	}
-	// MultiType
-	<<+ {|proxy, key = \in|
-		this.mixer(key).put(proxy.key, proxy);
-		this.perform ('<<>', this.mixer(key).asNodeProxy, key);
-	}
-
-	+>> {|proxy, key = \in|
-		proxy.perform ('<<+', this, key);
-	}
-		<<- {|proxy, key = \in|
-
-		}
-		->> {|proxy, key = \in|
-
-		}
 }
 /* ------------------------------------------------------------------------
 ------------------------------------------------------------------------- */
++ SynthDef {
 
+	onAdd {
+		this.manager.ndefsUsing.do{|ndef|
+			ndef.at(\ndef).send(ndef.at(\index));
+		}
+	}
+
+	add { arg libname, completionMsg, keepDef = true;
+		var	servers, desc = this.asSynthDesc(libname ? \global, keepDef);
+		if(libname.isNil) {
+			servers = Server.allRunningServers
+		} {
+			servers = SynthDescLib.getLib(libname).servers
+		};
+		servers.do { |each|
+			/* jd.beginOverwrite(): */
+			this.onAdd();
+			/* jd.endOverwrite(): */
+			this.doSend(each.value, completionMsg.value(each))
+		}
+	}
+
+	manager { ^SynthDefManager(this.name)}
+}
 

@@ -18,20 +18,24 @@
 }
 */
 
-CompartmentalDataRecorder {
+SegmentCapturer {
 
-	var <>clock, <>lastEntryTime, <>runningData, <>returnIndexes, <>storedData, <>currentData, <>isRecording;
+	classvar <>defaultQuant;
+	var <>clock, <>lastEntryTime, <>runningData, <>returnIndexes, <>data, <>currentData, <>isRecording;
 	var <>timeQuant;
+
+	*initClass { defaultQuant = (2**(-4)) }
+
 	*new {|aClock|
 		^super.new.init(aClock);
 	}
 
 	init {|aClock|
 		this.clock = aClock ? TempoClock.default;
-		this.storedData = List.new;
+		this.data = List.new;
 		this.currentData = ();
 		this.isRecording = false;
-		timeQuant = 2**(-4);
+		timeQuant = defaultQuant;
 	}
 
 	timeSinceLastEntry { ^( this.clock.beats - this.lastEntryTime ) }
@@ -50,10 +54,10 @@ CompartmentalDataRecorder {
 	prStoreEntry {
 
 		var activeList = this.prDeepAt(this.runningData, this.returnIndexes);
-		this.timeSinceLastEntry.postln;
-		this.set(\dur, this.timeSinceLastEntry.round(timeQuant).postln; );
-		activeList.add(this.timeSinceLastEntry.round(timeQuant));
-
+		this.timeSinceLastEntry/*.postln*/;
+		this.set(\dur, this.timeSinceLastEntry.round(timeQuant)/*.postln*/; );
+		// activeList.add(this.timeSinceLastEntry.round(timeQuant));
+		activeList.add(this.currentData.copy.postln);
 		this.resetLastEntryTime;
 	}
 
@@ -104,7 +108,7 @@ CompartmentalDataRecorder {
 		if (this.isRecording) {
 			func.value;
 			isRecording = false;
-			this.storedData = storedData.add(runningData.copy);
+			this.data = data.add(runningData.copy);
 		}
 	}
 
@@ -112,7 +116,7 @@ CompartmentalDataRecorder {
 
 	endSubEntry { this.breakCapture{ this.addEntry } }
 
-	endCapture { this.breakCapture{ this.jumpToTop; this.addEntry } }
+	endCapture { this.breakCapture { this.jumpToTop; this.addEntry } }
 
 	set {| ... currentDataPairs|
 		// runningData
@@ -121,17 +125,21 @@ CompartmentalDataRecorder {
 		}
 	}
 
-	data { ^this.storedData }
-
-	atKey {|aKey| 
-		^RecursiveArray.newFromArray(this.data).collect(elementFunc:{|el|
-			var res;
-			el.keysValuesDo{|key, value|
-				if (key == aKey) { res = value }
-			};
-			res;
-		})
+	get {|param|
+		^this.data.deepCollect2(onElement:{|el| el.at(param)})
 	}
+
+	// data { ^this.data }
+
+	// atKey {|aKey| 
+	// 	^List.newFrom(this.data).deepCollect2(onElements:{|el|
+	// 		var res;
+	// 		el.keysValuesDo{|key, value|
+	// 			if (key == aKey) { res = value }
+	// 		};
+	// 		res;
+	// 	})
+	// }
 
 	/* return elements and summed arrays */
 	atLevel {|level|
@@ -141,25 +149,6 @@ CompartmentalDataRecorder {
 	asPseq {|key| }
 
 	asDseq {|key| }
-
-	/*PRIVATE*/
-	/* move this into List class and call as instance method in store */
-	// prDeepAt {|arr, inds, i|
-	// 	var ret;
-	// 	if (i.isNil) {
-	// 		i = 0;
-	// 	} {
-	// 		i = i + 1;
-	// 	};
-
-	// 	if ( i == inds.size ) {
-	// 		^ret = arr;
-	// 	} {
-	// 		ret = arr[inds[i]];
-	// 		ret = this.prDeepAt(ret,inds, i)
-	// 	};
-	// 	^ret;
-	// }	
 
 	/* CleanUp */
 
@@ -172,117 +161,30 @@ CompartmentalDataRecorder {
 /* ========================================================================
 ========================================================================= */
 
-/*
-	Recorder
 
-	Approaches:
-		Record one file and use time data
-			- data more volatile
-			- could write it to text file (py)
++ List {
 
-		Record into multiple smaller files
-
-		Write to disk or just keep in buffers for session?
-
-		could use the control recorder but with functions as arguments to execute
-*/
-
-
-// CompartmentAudioRecorder {
-// 	/*
-// 		similar to control data recorder but records into audio buffers 
-// 	*/
-// 	classvar <>recorder, buffer, defname;
-	
-// 	*initClass {
-// 		recorder 
-// 		defname = this.class.asString++"DiskOut";
-		
-// 		SynthDef(defname.asSymbol, {
-// 			DiskOut.ar();
-// 			})
-// 	}
-
-// 	*new {
-
-// 	}
-
-// 	init {
-
-// 	}
-// }
-
-
-/* NEEDS REDOING */
-// Unnecesary?
-RecursiveArray : List {
-	var <>depth;
-	var <>parent;
-	/* Instantiation  */
-	*newFromArray {|aArray, depth| ^super.new.array_(aArray.asArray).depth_(depth ? 0) }
-	
-	/* Access */
-
-	/* Enumeration  */
-	asRecursiveArray {|arrayFunc, elementFunc|
-		var res = this.class.newClear(0);
-
+	deepCollect2 {|onArray, onElement, depth = 0, limit|
+		var res = List.newClear(0);
+		onArray ?? {onArray = {|arr| arr} };
+		onElement ?? {onElement = {|el| el} };
+		// depth = depth ? 0;
 		this.array.do{|el|
-			if (el.isArray)
-			{ res.add( 
-				this.class
-					.newFromArray(el)
-					.depth_(this.depth + 1)
-					.asRecursiveArray
-				) 
+			if (el.isKindOf(List))
+			{ 	
+				depth = depth + 1;
+				 res.add( 
+					onArray.value(
+						this.class
+						.newFrom(el)
+						.deepCollect2(onArray, onElement, depth, limit)
+					) 
+				);
 			}
-			{ res.add((el) ) }
-		};
-		^res
-	}
-
-	collect {|arrayFunc, elementFunc|
-		var res = [];
-		arrayFunc ?? {arrayFunc = {|arr| arr} };
-		elementFunc ?? {elementFunc = {|el| el} };
-
-		this.array.do{|el|
-			if (el.isArray)
-			{ res = res.add( arrayFunc.value(
-				this.class
-					.newFromArray(el)
-					.depth_(this.depth.postln + 1)
-					.collect(arrayFunc, elementFunc) ) 
-				) 
-			}
-			{ res = res.add( elementFunc.value(el) ) }
+			{ res.add( onElement.value(el, depth) ) }
 		};
 
 		^res
 	}
 
-	do {|arrayFunc, elementFunc|
-		arrayFunc ?? {arrayFunc = {|arr| arr} };
-		elementFunc ?? {elementFunc = {|el| el} };
-
-		this.array.do{|el|
-			if (el.isArray)
-			{ arrayFunc.value(
-				this.class
-					.newFromArray(el)
-					.parent_(this)
-					.depth_(this.depth + 1)
-					.do(arrayFunc, elementFunc),
-					this.depth)  
-			}
-			{ elementFunc.value(el, this.depth)  }
-		};
-	}
-
-	/* state */
-	flat {
-		 ^this.class.newFromArray(this.array.flat);
-	}
-
-	// species { ^this.class}
 }

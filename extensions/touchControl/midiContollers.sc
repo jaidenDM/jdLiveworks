@@ -133,8 +133,8 @@ MIDIControl : AbstractMIDIControl {
 
 			this.setControlProxy(val);
 
-			respondFunc.value(val, num, *this.args)
-		}, msgNum, chan, type, srcID);
+			respondFunc.value(val, num, (chan + 1), *this.args)
+		}, msgNum, nil, type, srcID);
 	}
 
 	cc_ {|func ... arglist|
@@ -267,7 +267,7 @@ MIDINoteGroup : MIDIControlGroup {
 	off_ {|func| this.doAll({|control ... arglist| control.off_(func, *arglist)}) }
 
 	at {|index|
-		this.controls[index]
+		^this.controls.at(index)
 	}
 }
 
@@ -369,8 +369,13 @@ MIDIController {
 		controls.put(key, group)
 	}
 	/* ACCESSING */
-	at {| key |
-		^controls[ key ] 
+	at {| key ... extra |
+		if (extra.size > 0)
+		{
+			^controls.at(key).at(extra.at(0), *extra[1 .. extra.size - 1 ])
+		}{
+			^controls.at(key)
+		}
 	}
 
 	/* CLEARING */

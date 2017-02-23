@@ -1,7 +1,5 @@
 + Ndef {
 	/* Scheduling */
-	resetSource { this.source_(this.source) }
-
 	doOn {| aClock, aQuant, func|
 		var clock = aClock ? this.clock ? TempoClock.default;
 		var quant = (aQuant ? this.quant).asQuant;
@@ -14,7 +12,7 @@
 
 	quantizeSource {|aClock, aQuant|
 		this.doOn(aClock, aQuant, {
-			this.resetSource;
+			this.send;
 			("resetting SOURCE of Ndef(\\" ++ (this.key.asString) ++ ")").postln;
 		})
 	}
@@ -25,7 +23,7 @@
 			
 			this.ins.ndefs.keysValuesDo{|key,input| 
 				input.postln;
-				input.resetSource;
+				input.send;
 			};
 			("resetting INPUTS of Ndef(\\" ++ (this.key.asString) ++ ")").postln;
 		})
@@ -34,7 +32,7 @@
 	quantizeOutputs {|aClock, aQuant|
 		this.doOn(aClock, aQuant, {
 			this.ins.ndefs.keysValuesDo{|key, output| 
-				output.resetSource;
+				output.send;
 			};
 			("resetting OUTPUTS of Ndef(\\" ++ (this.key.asString) ++ ")").postln;
 		})
